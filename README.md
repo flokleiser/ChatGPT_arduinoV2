@@ -1,8 +1,8 @@
 #  ChatGPT_arduinoV2 
 
-This project makes it easy to connect physical devies to a large language model, for prototyping so called "Large Language Objects". The project is essentially a voice assistant optimised for running on a raspberry pi with an attached arduino. The code has been tested on Linux and Mac OS. 
+This project makes it easy to connect physical devies to a large language model, for prototyping so called "Large Language Objects". The project is essentially a voice assistant optimised for running on a raspberry pi with an attached arduino. The code has been tested on Linux and Mac OS, and is optimised for Raspbery PI. 
 
-After following the installation instructions, create an .env file with the openAI api key in the following format, or add it to the config.js file. 
+After following the installation instructions, create an .env file with the openAI api key in the following format, or add it to the config.js file in an external usb stick
 
  ```bash
 OPENAI_API_KEY='******************************' 
