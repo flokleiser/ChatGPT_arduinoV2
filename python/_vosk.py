@@ -6,7 +6,7 @@ import time
 from vosk import Model, KaldiRecognizer
 
 # Constants
-DEVICE_INDEX = 0  # Update this to match your headset's device index
+DEVICE_INDEX = 0  # Update this to match speaker device index
 RATE = 16000  # Sample rate
 CHUNK = 1024  # Frame size
 THRESHOLD = 1000  # Adjust this to match your environment's noise level

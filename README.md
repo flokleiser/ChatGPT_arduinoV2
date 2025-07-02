@@ -1,8 +1,8 @@
 #  ChatGPT_arduinoV2 
 
-This project makes it easy to connect physical devies to a large language model, for prototyping so called "Large Language Objects". The project is essentially a voice assistant optimised for running on a raspberry pi with an attached arduino. The code has been on Linux and Mac OS. 
+This project makes it easy to connect physical devies to a large language model, for prototyping so called "Large Language Objects". The project is essentially a voice assistant optimised for running on a raspberry pi with an attached arduino. The code has been tested on Linux and Mac OS. 
 
-After followinf the installation instructions, create an .env file with the openAI api key in the followin format: 
+After following the installation instructions, create an .env file with the openAI api key in the following format, or add it to the config.js file. 
 
  ```bash
 OPENAI_API_KEY='******************************' 
@@ -22,12 +22,27 @@ OPENAI_API_KEY='******************************'
   ```bash
   ssh <username>@<devicename>.local
   ```
-  sudo raspi-config
+
+Allow the device to reboot. 
+ 
   
+IMPORTANT: Enable Serial Interface
+
+  ```bash
+  sudo raspi-config
+  ```
+
 In config select "Interfacing Options" > "Serial". 
 
 "Would you like a login shell to be accessible over serial?" > NO
 "Would you like the serial port hardware to be enabled?" > Yes
+
+
+### **Clone the Repository**
+```bash
+git clone https://github.com/IAD-ZHDK/ChatGPT_arduinoV2.git
+cd ChatGPT_arduinoV2
+```   
 
 
 ## Quick start
@@ -56,18 +71,13 @@ On macOS:
   brew install libusb
 
 
-### 2. **Clone the Repository**
+### 2. **Install Project Dependencies**
 ```bash
-git clone https://github.com/pixeloxx/SentientSenses.git
-cd SentientSenses
-```   
-
-### 3. **Install Project Dependencies**
-```bash
+cd ChatGPT_arduinoV2
 npm install
 ```
 
-### 4 Create and activate a Python virtual environment and install packages
+### 3. Create and activate a Python virtual environment and install packages
 
 python3 -m venv python/venv
 source python/venv/bin/activate
@@ -77,7 +87,7 @@ pip3 install --no-deps -r python/requirements.txt
 pip3 install onnxruntime  
 
 
-### 5. **Start the Application**
+### 4. **Start the Application**
 
 - Make sure python virtual environment is started:
 
@@ -96,7 +106,7 @@ or for development:
 
 - The backend will run on port 3000, and the frontend (Vite dev server) on port 5173.
 
-### 6. **Set Up Kiosk Mode and autostart**
+### 5. **Set Up Kiosk Mode and autostart**
 
 ```bash
 chmod +x runPi.sh
@@ -138,9 +148,9 @@ Add the .desktop file to /.config/autostart/ with the following content:
 
 ### setup wifi WPA2 enterprise
 ```bash
-   sudo nmcli connection add con-name "wlan0-ZHDK" type wifi ifname wlan0 ssid "YOUR_SSID" wifi-sec.key-mgmt wpa-eap 802-1x.eap peap 802-1x.phase2-auth mschapv2 802-1x.identity "YOUR_USERNAME" 802-1x.password "YOUR_PASSWORD" ipv4.method auto connection.autoconnect yes
+   sudo nmcli connection add con-name "wlan-ZHDK" type wifi ifname wlan0 ssid "YOUR_SSID" wifi-sec.key-mgmt wpa-eap 802-1x.eap peap 802-1x.phase2-auth mschapv2 802-1x.identity "YOUR_USERNAME" 802-1x.password "YOUR_PASSWORD" ipv4.method auto connection.autoconnect yes
   
-   sudo nmcli connection up "wlan0-ZHDK"
+   sudo nmcli connection up "wlan-ZHDK"
   
    nmcli connection show
 ```
@@ -152,6 +162,7 @@ Add the .desktop file to /.config/autostart/ with the following content:
 - Pass all errors to frontend display
 - Compete image integration 
 - BLE integration 
-- Wifi connection for WPA2 Enterprise 
+- Seperate speaker audio device python script
 - add simple way of downloading sst and tts models 
+- improve security (shh only over ethernet)
 
