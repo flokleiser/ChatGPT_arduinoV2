@@ -35,12 +35,13 @@ class ReSpeakerLite:
 
 
     def _init_device(self):
-        try:
-            if self.dev.is_kernel_driver_active(0):
-                self.dev.detach_kernel_driver(0)
-        except Exception:
-            pass
-        self.dev.set_configuration()
+         print(f"⚠️ init device is not set up")
+       # try:
+       #     if self.dev.is_kernel_driver_active(0):
+               # self.dev.detach_kernel_driver(0)
+      #  except Exception:
+       #     pass
+        # self.dev.set_configuration()
 
     def _find_respeaker_device_index(self):
         for i in range(self.p.get_device_count()):

@@ -2,7 +2,7 @@
 
 This project makes it easy to connect physical devies to a large language model, for prototyping so called "Large Language Objects". The project is essentially a voice assistant optimised for running on a raspberry pi with an attached arduino. The code has been tested on Linux and Mac OS, and is optimised for Raspbery PI. 
 
-After following the installation instructions, create an .env file with the openAI api key in the following format, or add it to the config.js file in an external usb stick
+After following the installation instructions, create an .env file with the openAI api key in the following format, or add it to the config.js file in an external usb stick. 
 
  ```bash
 OPENAI_API_KEY='******************************' 
@@ -64,6 +64,7 @@ chmod +x setup-and-run.sh
   curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
   sudo apt install -y nodejs chromium-browser git
   sudo apt-get install libusb-1.0-0-dev
+  sudo apt install portaudio19-dev
 
 
 On macOS:
@@ -82,12 +83,22 @@ npm install
 python3 -m venv python/venv
 source python/venv/bin/activate
 
-pip3 install pyaudio vosk sounddevice numpy piper pyusb
+pip3 install vosk sounddevice numpy piper pyusb
 pip3 install --no-deps -r python/requirements.txt
-pip3 install onnxruntime  
+pip3 install onnxruntime pyaudio sounddevice requests  
 
 
-### 4. **Start the Application**
+### 4. setup .env file
+
+```bash
+nano .env
+```
+and 
+ ```bash
+OPENAI_API_KEY='******************************' 
+  ```
+
+### 5. **Start the Application**
 
 - Make sure python virtual environment is started:
 
@@ -106,7 +117,7 @@ or for development:
 
 - The backend will run on port 3000, and the frontend (Vite dev server) on port 5173.
 
-### 5. **Set Up Kiosk Mode and autostart**
+### 6. **Set Up Kiosk Mode and autostart**
 
 ```bash
 chmod +x runPi.sh
