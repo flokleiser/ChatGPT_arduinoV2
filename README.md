@@ -156,13 +156,14 @@ Add the .desktop file to /.config/autostart/ with the following content:
 ```
 ###  Todo
 
-- audio out via respeaker lite
-- respeaker lite voice active integration
+- Respeaker lite voice active integration
 - Autorestart when config changed or Arduino disconnected
 - Pass all errors to frontend display
 - Compete image integration 
 - BLE integration 
 - Seperate speaker audio device python script
-- add simple way of downloading sst and tts models 
+- Alow choice of vosk and piper models vie config file
+- Alow wifi specifications via config file 
+- add shutdown button 
 - improve security (shh only over ethernet)
 

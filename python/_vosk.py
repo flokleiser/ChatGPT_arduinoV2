@@ -3,6 +3,9 @@ import sys
 import json
 import numpy as np
 import time
+# Add to imports at the top of _vosk.py
+from model_downloader import download_and_extract_model, check_model_exists
+
 from vosk import Model, KaldiRecognizer
 
 # Constants
@@ -10,17 +13,36 @@ DEVICE_INDEX = 0  # Update this to match speaker device index
 RATE = 16000  # Sample rate
 CHUNK = 1024  # Frame size
 THRESHOLD = 1000  # Adjust this to match your environment's noise level
-MODEL_PATH_EN = "STTmodels/vosk-model-en-us-0.22"  # Path to your Vosk model
-MODEL_PATH_EN_SMALL = "STTmodels/vosk-model-small-en-us-0.15"  # Path to your Vosk model
-MODEL_PATH_GERMAN = "STTmodels/vosk-model-small-de-0.15"  # Path to your Vosk model
 
-
+MODEL_PATH = "STTmodels/"  # Default model path
+MODEL_DEFAULT = "vosk-model-small-en-us-0.15"  # Path to your Vosk model
+MODEL_EN_LARGE = "vosk-model-en-us-0.22"  # Path to your Vosk model
+MODEL_DE_SMALL = "vosk-model-small-de-0.15"  # Path to your Vosk model
 
 class SpeechRecognizer:
-    def __init__(self, audio_source, size="medium", callback=None, rate=RATE, chunk=CHUNK):
+    def __init__(self, audio_source, size="medium", callback=None, rate=RATE, chunk=CHUNK, modelName=MODEL_DEFAULT):
+        # check if model exists, otherwise use default
+        if not check_model_exists(modelName, MODEL_PATH):
+                print(f"Model '{modelName}' not found. Attempting to download...", file=sys.stderr)
+                
+                # Try to download the specified model - no need to specify model_type
+                success = download_and_extract_model(modelName, MODEL_PATH, base_url="https://alphacephei.com/vosk/models/")
+                
+                # If that fails and it's not the default model, try the default
+                if not success and modelName != MODEL_DEFAULT:
+                    print(f"Falling back to default model '{MODEL_DEFAULT}'", file=sys.stderr)
+                    success = download_and_extract_model(MODEL_DEFAULT, MODEL_PATH)
+                    if success:
+                        modelName = MODEL_DEFAULT
+        else:
+            print(f"Using model '{modelName}'", file=sys.stderr)
+                    
+
+        
         self.PAUSE = False
         self.callback = callback or self.default_callback
-        self.model_path = MODEL_PATH_EN_SMALL
+        # combine MODEL_PATH and model na,e
+        self.model_path = os.path.join(MODEL_PATH, modelName)
         self.model = None
         self.recognizer = None
         self.running = False
@@ -185,5 +207,3 @@ class SpeechRecognizer:
          volume = np.abs(audio_chunk).max()  # Use absolute to handle both +ve and -ve peaks
           #print(f"Volume: {volume}"
          return volume > THRESHOLD
-
-    

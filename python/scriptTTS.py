@@ -5,14 +5,41 @@ import sounddevice as sd
 from piper.voice import PiperVoice
 import threading
 import os
+import requests
+import shutil
+# Add to imports at the top of _vosk.py
+from model_downloader import download_and_extract_model, check_model_exists, download_piper_voice
+
 
 # List of available models
-MODEL_PATHS = [
-    "./TTSmodels/en_GB-cori-high.onnx",
-    "./TTSmodels/en_GB-alan-medium.onnx",
-    "./TTSmodels/en_US-lessac-medium.onnx",
-    "./TTSmodels/de_DE-thorsten-medium.onnx",
-]
+
+MODEL_PATH = "TTSmodels/"  # Default model path
+
+
+
+# Dictionary mapping model names to their download URLs (model + config)
+TTS_MODELS = {
+    "en_GB-cori-high.onnx": {
+        "model": "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_GB/cori/high/en_GB-cori-high.onnx",
+        "config": "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_GB/cori/high/en_GB-cori-high.onnx.json"
+    },
+    "en_GB-alan-medium.onnx": {
+        "model": "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_GB/alan/medium/en_GB-alan-medium.onnx",
+        "config": "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_GB/alan/medium/en_GB-alan-medium.onnx.json"
+    },
+    "en_US-lessac-medium.onnx": {
+        "model": "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx",
+        "config": "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json"
+    },
+    "de_DE-thorsten-medium.onnx": {
+        "model": "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/de/de_DE/thorsten/medium/de_DE-thorsten-medium.onnx",
+        "config": "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/de/de_DE/thorsten/medium/de_DE-thorsten-medium.onnx.json"
+    }
+}
+
+# List of available model names (for easy indexing)
+MODEL_NAMES = list(TTS_MODELS.keys())
+MODEL_DEFAULT = MODEL_NAMES[0]
 
 playback_thread = None
 stop_event = threading.Event()
@@ -20,9 +47,24 @@ pause_event = threading.Event()
 voice_cache = {}
 outPut_Device = None
 
-def get_voice(model_path):
+def get_voice(model_name):
+    """Get voice model, downloading if necessary"""
+    model_base = os.path.splitext(os.path.basename(model_name))[0]  # Remove .onnx if present
+    model_path = os.path.join(MODEL_PATH, model_name)
+    
     if model_path not in voice_cache:
+        # Check if model exists
+        if not (os.path.exists(model_path) and os.path.exists(model_path + ".json")):
+            print(f"Voice model '{model_path}' not found. Downloading...", file=sys.stderr)
+            success = download_piper_voice(model_base, MODEL_PATH, 
+                                           model_url=TTS_MODELS[model_name]['model'],
+                                           config_url=TTS_MODELS[model_name]['config'])
+            if not success:
+                raise FileNotFoundError(f"Failed to download voice model: {model_base}")
+        
+        # Load the model
         voice_cache[model_path] = PiperVoice.load(model_path)
+    
     return voice_cache[model_path]
 
 def send_message(name, string):
@@ -105,8 +147,6 @@ def handle_command(cmd):
 def main():
     global playback_thread, stop_event, pause_event, outPut_Device
     
-    
-
     outPut_Device = find_respeaker_device()
     
     print("Ready for text input...", file=sys.stderr)
@@ -132,16 +172,15 @@ def main():
 
             if not text:
                 continue
-            if not (0 <= model_no < len(MODEL_PATHS)):
+            if not (0 <= model_no < len(MODEL_NAMES)):
                 print(f"Invalid model number: {model_no}", file=sys.stderr)
                 continue
-            model_path = MODEL_PATHS[model_no]
-            if not os.path.isfile(model_path):
-                print(f"Model file not found: {model_path}", file=sys.stderr)
-                continue
-
-            voice = get_voice(model_path)
-            print(f"Synthesizing: {text} (model: {model_path})", file=sys.stderr)
+           
+                
+            model_name = MODEL_NAMES[model_no]
+            print(f"Atempting to get voice", file=sys.stderr)
+            voice = get_voice(model_name)
+            print(f"Synthesizing: {text} (model: {model_name})", file=sys.stderr)
 
             # Interrupt current playback if running
             if playback_thread and playback_thread.is_alive():
@@ -182,10 +221,55 @@ def find_respeaker_device():
             print(f"Error finding audio devices: {e}", file=sys.stderr)
         return None
 
-def get_voice(model_path):
-        if model_path not in voice_cache:
-            voice_cache[model_path] = PiperVoice.load(model_path)
-        return voice_cache[model_path]
+
+    
+def ensure_tts_model_exists(model_path):
+    """Ensures the specified TTS model exists, downloading it if necessary"""
+    model_dir = os.path.dirname(model_path)
+    model_name = os.path.basename(model_path)
+    config_path = model_path + ".json"
+    
+    # If both files exist, we're good
+    if os.path.exists(model_path) and os.path.exists(config_path):
+        return True
+    
+    # Need to download one or both files
+    print(f"TTS model '{model_name}' or its config not found. Downloading...", file=sys.stderr)
+    os.makedirs(model_dir, exist_ok=True)
+    
+    if model_name not in TTS_MODELS:
+        print(f"No download information for model: {model_name}", file=sys.stderr)
+        return False
+    
+    try:
+        # Download model file if needed
+        if not os.path.exists(model_path):
+            print(f"Downloading model file from {TTS_MODELS[model_name]['model']}", file=sys.stderr)
+            model_response = requests.get(TTS_MODELS[model_name]['model'], stream=True)
+            model_response.raise_for_status()
+            
+            with open(model_path, 'wb') as f:
+                shutil.copyfileobj(model_response.raw, f)
+            
+            print(f"Model downloaded to {model_path}", file=sys.stderr)
+        
+        # Download config file if needed
+        if not os.path.exists(config_path):
+            print(f"Downloading config from {TTS_MODELS[model_name]['config']}", file=sys.stderr)
+            config_response = requests.get(TTS_MODELS[model_name]['config'])
+            config_response.raise_for_status()
+            
+            with open(config_path, 'wb') as f:
+                f.write(config_response.content)
+                
+            print(f"Config downloaded to {config_path}", file=sys.stderr)
+        
+        # Verify files exist
+        return os.path.exists(model_path) and os.path.exists(config_path)
+    
+    except Exception as e:
+        print(f"Error downloading TTS model: {e}", file=sys.stderr)
+        return False
 
 def send_message(name, string):
         msg = {f"{name}": f"{string}"}
