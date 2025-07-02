@@ -10,6 +10,8 @@ const config = {
     url: "https://api.openai.com/v1/chat/completions", // gpt-4 is "https://api.openai.com/v1/completions";
   },
 
+  // openAIKey: "your-api-key-here",  
+  
   communicationMethod: "Serial", //Serial or "BLE"
   //  serviceUuid: "19b10000-e8f2-537e-4f6c-d104768a1214", // Only needed for BLE
 

@@ -107,7 +107,6 @@ class SpeechRecognizer:
             if voice_status_threshold:
                 # If we just transitioned to True, feed the pre-buffer
                 if not prev_voice_status_threshold and self.pre_buffer:
-                    print(f"Feeding pre-buffer ({len(self.pre_buffer)} chunks)", file=sys.stderr) 
                     for chunk in self.pre_buffer:
                         self.recognizer.AcceptWaveform(chunk)
                     self.pre_buffer.clear()

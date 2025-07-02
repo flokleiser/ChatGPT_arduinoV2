@@ -30,8 +30,18 @@ In config select "Interfacing Options" > "Serial".
 "Would you like the serial port hardware to be enabled?" > Yes
 
 
+## Quick start
 
-### 3. **Install Dependencies**
+You can attemp to do the setup with the shell sript setup-and-run. If this fails, then attempt the manuel process 
+
+```bash
+chmod +x setup-and-run.sh
+./setup-and-run.sh
+```
+
+## Manual Setup
+
+### 1. **Install Dependencies**
 - Update the system and install Node.js, npm, and Chromium etc:
   ```bash
 
@@ -46,28 +56,28 @@ On macOS:
   brew install libusb
 
 
-### 4. **Clone the Repository**
+### 2. **Clone the Repository**
 ```bash
 git clone https://github.com/pixeloxx/SentientSenses.git
 cd SentientSenses
 ```   
 
-### 5. **Install Project Dependencies**
+### 3. **Install Project Dependencies**
 ```bash
 npm install
 ```
 
-### 6 Create and activate a Python virtual environment and install packages
+### 4 Create and activate a Python virtual environment and install packages
 
 python3 -m venv python/venv
 source python/venv/bin/activate
 
 pip3 install pyaudio vosk sounddevice numpy piper pyusb
 pip3 install --no-deps -r python/requirements.txt
-pip3 install onnxruntime
+pip3 install onnxruntime  
 
 
-### 7. **Start the Application**
+### 5. **Start the Application**
 
 - Make sure python virtual environment is started:
 
@@ -86,7 +96,7 @@ or for development:
 
 - The backend will run on port 3000, and the frontend (Vite dev server) on port 5173.
 
-### 8. **Set Up Kiosk Mode and autostart**
+### 6. **Set Up Kiosk Mode and autostart**
 
 ```bash
 chmod +x runPi.sh
@@ -112,9 +122,28 @@ chmod +x runPi.sh
 
 ###  AutoStart
 
-Add the .desktop file to home/pi/.config/autostart/
+Add the .desktop file to /.config/autostart/ with the following content:
+
+```bash
+  Type=Application
+  Name=Sentient Senses
+  Comment=Start Sentient Senses Kiosk
+  Exec=<path>run.sh
+  Path=<path>
+  Icon=utilities-terminal
+  Terminal=false
+```
 
 
+
+### setup wifi WPA2 enterprise
+```bash
+   sudo nmcli connection add con-name "wlan0-ZHDK" type wifi ifname wlan0 ssid "YOUR_SSID" wifi-sec.key-mgmt wpa-eap 802-1x.eap peap 802-1x.phase2-auth mschapv2 802-1x.identity "YOUR_USERNAME" 802-1x.password "YOUR_PASSWORD" ipv4.method auto connection.autoconnect yes
+  
+   sudo nmcli connection up "wlan0-ZHDK"
+  
+   nmcli connection show
+```
 ###  Todo
 
 - audio out via respeaker lite
@@ -124,4 +153,5 @@ Add the .desktop file to home/pi/.config/autostart/
 - Compete image integration 
 - BLE integration 
 - Wifi connection for WPA2 Enterprise 
+- add simple way of downloading sst and tts models 
 

@@ -10,11 +10,36 @@ class ChatGPTAPI {
     // Configuration and communication object
     this.config = config;
     this.functionHandler = functionHandler;
+    // Use the API key in your app
+    this.apiKey = this.getApiKey(this.config);
     // OpenAI API settings
     this.Url = config.chatGPTSettings.url;
     this.Model = config.chatGPTSettings.model;
     this.MaxTokens = config.chatGPTSettings.max_tokens;
     this.UserId = config.chatGPTSettings.user_id;
+
+  }
+
+
+  // Function to get API key from either .env or config.js
+  getApiKey(config) {
+
+    try {
+      if (config.openAIKey) {
+        console.log("Using API key from config.js");
+        return config.openAIKey;
+      } else {
+        if (process.env.OPENAI_API_KEY) {
+          console.log("Using API key from .env file");
+          return process.env.OPENAI_API_KEY;
+        }
+      }
+    } catch (err) {
+      console.error("Error reading config file:", err);
+    }
+
+    // If not found anywhere, throw error
+    throw new Error("OpenAI API key not found. Please provide it in .env file or config.js");
   }
 
 
@@ -30,7 +55,7 @@ class ChatGPTAPI {
    * Optionally, handle function calls.
    */
   async send(sQuestion, role, funtionName) {
-    console.log("send to llm:"+role+" "+sQuestion+" "+funtionName)
+    console.log("send to llm:" + role + " " + sQuestion + " " + funtionName)
     return new Promise((resolve, reject) => {
       (async () => {
         // Prepare API request data
@@ -80,14 +105,14 @@ class ChatGPTAPI {
             headers: {
               'Accept': 'application/json',
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+              'Authorization': `Bearer ${this.apiKey}`,
             },
             body: JSON.stringify(data),
           });
 
           const oJson = await response.json();
-         
-         // console.log(oJson.choices[0].message,);
+
+          // console.log(oJson.choices[0].message,);
 
           // Handle API errors
           if (oJson.error && oJson.error.message) {
@@ -95,7 +120,7 @@ class ChatGPTAPI {
             throw new Error("Error: " + oJson.error.message);
           } else if (oJson.choices[0].finish_reason === "function_call") {
             // Handle function call
-             console.log("function_call");
+            console.log("function_call");
             // Add function call to conversation history
             let message = oJson.choices[0].message;
             console.log("function_call with function name:", message.function_call.name);
@@ -113,16 +138,16 @@ class ChatGPTAPI {
               content: message.function_call.arguments
             });
             // console.log(result);
-            
+
             // if the function call has a return value, pass it back to the LLM, otherwise just resolve the result
             if (result.description == 'response') {
               // description: 'response', value: newData }
-               resolve(this.send(result.description, "function", result.value))
+              resolve(this.send(result.description, "function", result.value))
             } else {
-               resolve(result);
+              resolve(result);
             }
 
-            
+
 
           } else {
             console.log("normal response");
@@ -164,73 +189,73 @@ class ChatGPTAPI {
  * @param {string} role - role for the message, usually "user"
  * @returns {Promise<{message: string, role: string}>}
  */
-async sendImage(image, role = "user") {
-  // Remove data URL prefix if present
-  const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+  async sendImage(image, role = "user") {
+    // Remove data URL prefix if present
+    const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
 
-  const messages = [
-    {
-      role: "system",
-      content: "Describe the image. Be specific about the objects, people, colors, textures, and context.",
-    },
-    {
-      role: role,
-      content: [
-        {
-          type: "image_url",
-          image_url: {
-            url: `data:image/png;base64,${base64Data}`,
-          },
-        },
-      ],
-    },
-  ];
-
-  const data = {
-    model: this.Model, // Should be "gpt-4o" or "gpt-4-vision-preview"
-    messages: messages,
-    max_tokens: this.MaxTokens || 1024,
-    user: this.UserId,
-  };
-
-  try {
-    const response = await fetch(this.Url, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+    const messages = [
+      {
+        role: "system",
+        content: "Describe the image. Be specific about the objects, people, colors, textures, and context.",
       },
-      body: JSON.stringify(data),
-    });
+      {
+        role: role,
+        content: [
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:image/png;base64,${base64Data}`,
+            },
+          },
+        ],
+      },
+    ];
 
-    const oJson = await response.json();
+    const data = {
+      model: this.Model, // Should be "gpt-4o" or "gpt-4-vision-preview"
+      messages: messages,
+      max_tokens: this.MaxTokens || 1024,
+      user: this.UserId,
+    };
 
-    if (oJson.error && oJson.error.message) {
-      console.log("Error from OpenAI API:", oJson.error.message);
-      throw new Error("Error: " + oJson.error.message);
+    try {
+      const response = await fetch(this.Url, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      const oJson = await response.json();
+
+      if (oJson.error && oJson.error.message) {
+        console.log("Error from OpenAI API:", oJson.error.message);
+        throw new Error("Error: " + oJson.error.message);
+      }
+
+      let sMessage = "";
+      if (oJson.choices && oJson.choices[0].message) {
+        sMessage = oJson.choices[0].message.content;
+      }
+
+      if (!sMessage) {
+        sMessage = "No response";
+      }
+
+      // Optionally, add to conversation history
+      this.config.conversationProtocol.push({
+        role: "assistant",
+        content: sMessage,
+      });
+
+      return { message: sMessage, role: "assistant" };
+    } catch (e) {
+      return { message: `Error fetching ${this.Url}: ${e.message}`, role: "error" };
     }
-
-    let sMessage = "";
-    if (oJson.choices && oJson.choices[0].message) {
-      sMessage = oJson.choices[0].message.content;
-    }
-
-    if (!sMessage) {
-      sMessage = "No response";
-    }
-
-    // Optionally, add to conversation history
-    this.config.conversationProtocol.push({
-      role: "assistant",
-      content: sMessage,
-    });
-
-    return { message: sMessage, role: "assistant" };
-  } catch (e) {
-    return { message: `Error fetching ${this.Url}: ${e.message}`, role: "error" };
   }
-}
 
 
 }

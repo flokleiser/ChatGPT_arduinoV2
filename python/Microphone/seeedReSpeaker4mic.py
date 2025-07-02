@@ -15,7 +15,7 @@ class ReSpeaker4MicArray:
         if self.dev is None:
             raise ValueError("ReSpeaker 4-Mic Array not found.")
         self._init_device()
-        self.inspect_usb_device()
+        # self.inspect_usb_device()
         # PyAudio setup
         self.p = pyaudio.PyAudio()
         self.rate = rate
