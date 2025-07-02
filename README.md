@@ -83,9 +83,9 @@ npm install
 python3 -m venv python/venv
 source python/venv/bin/activate
 
-pip3 install vosk sounddevice numpy piper pyusb
+pip3 install vosk numpy piper pyusb sounddevice requests  
 pip3 install --no-deps -r python/requirements.txt
-pip3 install onnxruntime pyaudio sounddevice requests  
+pip3 install onnxruntime pyaudio 
 
 
 ### 4. setup .env file

@@ -180,7 +180,7 @@ body {
 }
 
 .fade-out {
-  animation: fadeOut 1.5s ease-out forwards;
+  animation: fadeOut 4.5s ease-out forwards;
 }
 
 /* Ensure divs are visible by default */

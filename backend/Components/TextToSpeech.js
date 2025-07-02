@@ -11,12 +11,12 @@ class TextToSpeech {
     constructor(speechRecievedCallback = this.defaultCallback) {
         this.speechRecievedCallback = speechRecievedCallback;
         console.log("Text To Speech starting");
-         this.py = spawn('python3', ['scriptTTS.py'], {
+        this.py = spawn('python3', ['scriptTTS.py'], {
             cwd: path.join(__dirname, '../../python') // Correct relative path
         });
 
         // Listen for any message from Python
-         this.py.stdout.on('data', (data) => {
+        this.py.stdout.on('data', (data) => {
             data.toString().split('\n').filter(Boolean).forEach(line => {
                 let msg;
                 try {
@@ -26,7 +26,7 @@ class TextToSpeech {
                     return;
                 }
                 try {
-                   this.speechRecievedCallback(msg);
+                    this.speechRecievedCallback(msg);
                 } catch (e) {
                     console.error('Error handling Python message:', msg, e);
                 }
@@ -34,21 +34,30 @@ class TextToSpeech {
         });
 
         // Optional: Handle Python errors and exit
-         this.py.stderr.on('data', (data) => {
+        this.py.stderr.on('data', (data) => {
             console.error('Python:', data.toString());
         });
-         this.py.on('close', (code) => {
+        this.py.on('close', (code) => {
             console.log(`Python process exited with code ${code}`);
         });
     }
 
-    say(TTStext, voice = 0) {
-         this.py.stdin.write(JSON.stringify({
-            text: TTStext,
-            model: voice
-        }) + "\n");
-    }
+    say(TTStext, voice = 0, vol = 100) {
+        const message = {};
+        message.text = TTStext;
 
+        if (voice !== undefined && voice !== null) {
+            message.model = voice;
+        }
+
+        if (vol !== undefined && vol !== null && vol >= 0 && vol <= 100) {
+            // Send volume as a separate command to avoid conflicts
+            this.py.stdin.write(JSON.stringify({ "volume": vol }) + "\n");
+        }
+
+        // Send the text and model information
+        this.py.stdin.write(JSON.stringify(message) + "\n");
+    }
     pause() {
         py.stdin.write(JSON.stringify({ TTS: "pause" }) + "\n");
     }
@@ -56,7 +65,7 @@ class TextToSpeech {
         py.stdin.write(JSON.stringify({ TTS: "resume" }) + "\n");
     }
 
-   defaultCallback(data) {
+    defaultCallback(data) {
         console.log("default callback function: " + data);
     }
 

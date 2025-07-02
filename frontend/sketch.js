@@ -3,13 +3,13 @@ let font;
 
 function preload() {
     // Load the font
-    font = loadFont('/assets/RobotoMono.otf');
+    //font = loadFont('/assets/RobotoMono.otf');
 }
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
     background(100, 100, 100);
-    textFont(font);
+    //textFont(font);
     //frontendFunctions["start_party"]();
 }
 
@@ -20,11 +20,6 @@ function draw() {
     stroke(255);
     noFill();
     //circle((width / 2), (height / 2), max(width, height) + 5);
-    pop();
-    // backgroundFill();
-    fill(0);
-    textSize(36);
-    textAlign(CENTER, CENTER);
 }
 
 function simpleTruchetPatern() {

@@ -10,7 +10,7 @@ import shutil
 # Add to imports at the top of _vosk.py
 from model_downloader import download_and_extract_model, check_model_exists, download_piper_voice
 
-
+tts_volume = 100 
 # List of available models
 
 MODEL_PATH = "TTSmodels/"  # Default model path
@@ -122,6 +122,16 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
                     break
             int_data = np.frombuffer(audio_bytes, dtype=np.int16)
             
+              # Apply volume scaling to the audio data
+            if tts_volume != 100:
+                # Convert to float for scaling to avoid integer overflow
+                float_data = int_data.astype(np.float32)
+                # Scale by volume (0-100%)
+                float_data = float_data * (tts_volume / 100.0)
+                # Convert back to int16, clipping if necessary
+                int_data = np.clip(float_data, -32768, 32767).astype(np.int16)
+            
+            
             # If device has multiple channels, duplicate the mono audio
             if device_channels > 1:
                 # Duplicate mono audio to match channel count (e.g., stereo)
@@ -135,14 +145,55 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
         print(f"Audio playback error: {e}", file=sys.stderr)
         send_message("tts", f"error: {e}")
 
+def set_tts_volume(volume_level):
+    """
+    Set the TTS output volume level (0-100)
+    
+    Args:
+        volume_level (int): Volume level from 0 (mute) to 100 (max)
+    Returns:
+        int: New volume level, or None if invalid
+    """
+    global tts_volume
+    
+    if not 0 <= volume_level <= 100:
+        print(f"Volume level must be between 0 and 100", file=sys.stderr)
+        return None
+    
+    tts_volume = volume_level
+    print(f"TTS output volume set to {tts_volume}%", file=sys.stderr)
+    return tts_volume
+
 def handle_command(cmd):
-    global pause_event
-    if cmd == "pause":
-        pause_event.set()
-        print(f"pausing", file=sys.stderr)
-    elif cmd == "resume":
-        pause_event.clear()
-        send_message("tts", "resumed")
+     global pause_event, tts_volume
+    
+     if isinstance(cmd, str):
+        if cmd == "pause":
+            pause_event.set()
+            print("pausing", file=sys.stderr)
+        elif cmd == "resume":
+            pause_event.clear()
+            send_message("tts", "resumed")
+     elif isinstance(cmd, dict):
+        if "volume" in cmd:
+            try:
+                new_volume = int(cmd["volume"])
+                result = set_tts_volume(new_volume)
+                if result is not None:
+                    send_message("volume", str(result))
+            except ValueError:
+                print(f"Invalid volume value: {cmd['volume']}", file=sys.stderr)
+        elif "volume_change" in cmd:
+            try:
+                change = int(cmd["volume_change"])
+                new_volume = max(0, min(100, tts_volume + change))
+                result = set_tts_volume(new_volume)
+                if result is not None:
+                    send_message("volume", str(result))
+            except ValueError:
+                print(f"Invalid volume change value: {cmd['volume_change']}", file=sys.stderr)
+        elif "volume_get" in cmd:
+            send_message("volume", str(tts_volume))
 
 def main():
     global playback_thread, stop_event, pause_event, outPut_Device
@@ -161,14 +212,20 @@ def main():
             except Exception:
                 msg = {}
 
-            # Handle pause/resume commands
-            if isinstance(msg, dict) and "tts" in msg:
-                handle_command(msg["tts"])
-                continue
+            # Handle commands
+            if isinstance(msg, dict):
+                if "tts" in msg:
+                    handle_command(msg["tts"])
+                    continue
+                # Handle volume control commands
+                if "volume" in msg or "volume_change" in msg or "volume_get" in msg:
+                    handle_command(msg)
+                    continue
 
             # Otherwise, treat as TTS request
             text = msg.get("text", "") if isinstance(msg, dict) else line
             model_no = int(msg.get("model", 0)) if isinstance(msg, dict) else 0
+        
 
             if not text:
                 continue
