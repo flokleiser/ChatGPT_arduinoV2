@@ -85,62 +85,57 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
                 print(f"Device {device} has {device_channels} output channels", file=sys.stderr)
             except Exception as e:
                 print(f"Error querying device {device}: {e}", file=sys.stderr)
+                device = None  # Fall back to default device
         
-        # Set up the output stream with proper error handling for device
+        # Set up the output stream with proper error handling
         try:
-            # Try with specified device first
-            if device is not None:
-                stream = sd.OutputStream(
-                    samplerate=voice.config.sample_rate, 
-                    channels=device_channels,  # Use the device's channel count
-                    dtype='int16',
-                    device=device
-                )
-            else:
-                # Fall back to default device if none specified
-                stream = sd.OutputStream(
-                    samplerate=voice.config.sample_rate, 
-                    channels=1, 
-                    dtype='int16'
-                )
-        except Exception as e:
-            print(f"Error with specified device, falling back to default: {e}", file=sys.stderr)
-            # Final fallback - try with default device
+            # Create stream with the proper channel count
             stream = sd.OutputStream(
                 samplerate=voice.config.sample_rate, 
-                channels=1, 
-                dtype='int16'
+                channels=device_channels,
+                dtype='int16',
+                device=device
             )
+            print(f"Successfully opened stream with {device_channels} channels", file=sys.stderr)
             
-        stream.start()
-        for audio_bytes in voice.synthesize_stream_raw(text):
-            if stop_event.is_set():
-                break
-            while pause_event.is_set():
-                sd.sleep(100)
+            stream.start()
+            
+            for audio_bytes in voice.synthesize_stream_raw(text):
                 if stop_event.is_set():
                     break
-            int_data = np.frombuffer(audio_bytes, dtype=np.int16)
+                while pause_event.is_set():
+                    sd.sleep(100)
+                    if stop_event.is_set():
+                        break
+                
+                int_data = np.frombuffer(audio_bytes, dtype=np.int16)
+                
+                # Apply volume scaling if needed
+                if tts_volume != 100:
+                    float_data = int_data.astype(np.float32)
+                    float_data = float_data * (tts_volume / 100.0)
+                    int_data = np.clip(float_data, -32768, 32767).astype(np.int16)
+                
+                # If device has multiple channels, duplicate the mono audio
+                if device_channels > 1:
+                    # Reshape to column vector and duplicate across channels
+                    int_data = np.repeat(int_data.reshape(-1, 1), device_channels, axis=1)
+                
+                stream.write(int_data)
             
-              # Apply volume scaling to the audio data
-            if tts_volume != 100:
-                # Convert to float for scaling to avoid integer overflow
-                float_data = int_data.astype(np.float32)
-                # Scale by volume (0-100%)
-                float_data = float_data * (tts_volume / 100.0)
-                # Convert back to int16, clipping if necessary
-                int_data = np.clip(float_data, -32768, 32767).astype(np.int16)
+            stream.stop()
+            stream.close()
+            send_message("tts", "stopped")
             
+        except Exception as e:
+            print(f"Stream error: {e}", file=sys.stderr)
+            # Try with default device as last resort
+            if device is not None:
+                print("Falling back to default audio device", file=sys.stderr)
+                play_stream(voice, text, stop_event, pause_event, None)
+            else:
+                raise
             
-            # If device has multiple channels, duplicate the mono audio
-            if device_channels > 1:
-                # Duplicate mono audio to match channel count (e.g., stereo)
-                int_data = np.repeat(int_data.reshape(-1, 1), device_channels, axis=1)
-            
-            stream.write(int_data)
-        stream.stop()
-        stream.close()
-        send_message("tts", "stopped")
     except Exception as e:
         print(f"Audio playback error: {e}", file=sys.stderr)
         send_message("tts", f"error: {e}")
