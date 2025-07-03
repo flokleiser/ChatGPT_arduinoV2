@@ -3,8 +3,6 @@ import usb.util
 import pyaudio
 import time
 import sys
-from Microphone.tuning import Tuning
-from Microphone.pixel_ring import PixelRing 
 
 class ReSpeakerLite:
     VENDOR_ID = 0x2886
@@ -23,16 +21,6 @@ class ReSpeakerLite:
         self.format = format
         self.input_device_index = self._find_respeaker_device_index()
         self.stream = None
-
-        # Tuning (for DoA, gain, VAD, etc.)
-        try:
-            self.tuning = Tuning(self.dev)
-            self.tuning_available = True
-            if self.verbose:
-                print("✅ Tuning module available", file=sys.stderr)
-        except Exception as e:
-            self.tuning_available = False
-            print(f"⚠️ Tuning module not available: {e}", file=sys.stderr)
 
 
     def _init_device(self):
@@ -56,19 +44,9 @@ class ReSpeakerLite:
     def open_stream(self):
         """Open an audio stream for the ReSpeaker Lite."""
         try:
-            # First, get the device info to check supported channels
-            device_info = self.p.get_device_info_by_index(self.input_device_index)
-            max_input_channels = int(device_info['maxInputChannels'])
-            
-            print(f"ReSpeaker Lite has {max_input_channels} input channels", file=sys.stderr)
-            
-            # Make sure we're using a valid channel count
-            # ReSpeaker Lite typically has 2 channels
-            input_channels = min(2, max_input_channels)  # Use 2 channels or whatever is available
-            
             self.stream = self.p.open(
                 format=self.format,
-                channels=input_channels,  # Use the detected number of channels
+                channels=1,
                 rate=self.rate,
                 input=True,
                 frames_per_buffer=self.chunk,
@@ -76,44 +54,17 @@ class ReSpeakerLite:
             )
             return self.stream
         except Exception as e:
-            print(f"Error opening stream for ReSpeaker Lite: {e}", file=sys.stderr)
-            # Try again with just 1 channel as last resort
-            try:
-                self.stream = self.p.open(
-                    format=self.format,
-                    channels=1,  # Fallback to mono
-                    rate=self.rate,
-                    input=True,
-                    frames_per_buffer=self.chunk,
-                    input_device_index=self.input_device_index
-                )
-                print("Opened ReSpeaker Lite with fallback to mono input", file=sys.stderr)
-                return self.stream
-            except Exception as e:
                 print(f"Fatal error opening ReSpeaker Lite stream: {e}", file=sys.stderr)
                 raise
 
     def read(self, chunk=None):
-        """Read data from the stream.
-        
-        Returns mono audio even if device has multiple channels.
-        """
         if chunk is None:
             chunk = self.chunk
-            
+    
         data = self.stream.read(chunk, exception_on_overflow=False)
         
-        # Convert to numpy array to handle multi-channel audio
-        import numpy as np
-        audio_data = np.frombuffer(data, dtype=np.int16)
-        
-        # If stereo, convert to mono by averaging channels
-        if self.stream._channels > 1:
-            audio_data = audio_data.reshape(-1, self.stream._channels)
-            audio_data = np.mean(audio_data, axis=1, dtype=np.int16)
-        
         # Convert back to bytes
-        return audio_data.tobytes()
+        return data
 
     def close_stream(self):
         if self.stream is not None:
