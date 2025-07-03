@@ -177,4 +177,5 @@ Add the .desktop file to /.config/autostart/ with the following content:
 - Alow wifi specifications via config file 
 - add shutdown button 
 - improve security (shh only over ethernet)
+- add more stable handling of serial errors and disconnections
 

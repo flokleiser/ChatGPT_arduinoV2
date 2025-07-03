@@ -1,5 +1,4 @@
-// TODO: add more stable handling of serial errors and disconnections
-// Add voice option in config, potentially download voices if they are not available.
+// Add voice option in config
 
 import express from 'express';
 import cors from 'cors';
@@ -19,6 +18,7 @@ import { captureAndSendImage } from "./Components/camera.js";
 let communicationMethod = null;
 let speechToText = null;
 let config = null;
+let ttsvolume = 50;
 
 
 const app = express();
@@ -33,7 +33,7 @@ async function main() {
   config = await loadConfig();
 
 
-   // 1. Start HTTP/WebSocket server
+  // 1. Start HTTP/WebSocket server
   app.use(cors()); // Configure middleware for Express.js server.
   app.use(express.json()); // Configure middleware for Express.js server.
 
@@ -50,18 +50,18 @@ async function main() {
       return;
     }
     console.log(`Accepted WebSocket connection from ${ip}`);
-       const lastAssistantMessage = config.conversationProtocol
-        .filter(msg => msg.role === "assistant")
-        .pop();
-        
+    const lastAssistantMessage = config.conversationProtocol
+      .filter(msg => msg.role === "assistant")
+      .pop();
+
     if (lastAssistantMessage) {
-        const initialState = {
-            backEnd: {
-                messageOut: lastAssistantMessage.content,
-                messageInComplete: true  // Assume complete since it's history
-            }
-        };
-        ws.send(JSON.stringify(initialState));
+      const initialState = {
+        backEnd: {
+          messageOut: lastAssistantMessage.content,
+          messageInComplete: true  // Assume complete since it's history
+        }
+      };
+      ws.send(JSON.stringify(initialState));
     }
 
     ws.on('message', (message) => {
@@ -81,6 +81,9 @@ async function main() {
         } else if (cmd.command === 'resume') {
           speechToText.resume();
           ws.send('Sent resume command to Python');
+        } else if (cmd.command === 'setVolume') {
+          // convert string to number
+          ttsvolume = parseInt(cmd.value, 10);
         } else if (cmd.text) {
           LLM_API.send(cmd.text, "user").then((response) => {
             LLMresponseHandler(response);
@@ -159,7 +162,7 @@ async function main() {
     });
   }
 
-    function updateFrontend(message, messageType, complete) {
+  function updateFrontend(message, messageType, complete) {
     const dataObj = {};
     dataObj.backEnd = {};
     if (typeof message !== 'undefined') dataObj.backEnd.message = message;
@@ -205,7 +208,8 @@ async function main() {
       let message = returnObject.message.toString();
       try {
         updateFrontend(message, "assistant");
-        textToSpeech.say(message, 0);
+        console.log("Text to speech volume: " + ttsvolume);
+        textToSpeech.say(message, 0, ttsvolume);
       } catch (error) {
         console.log(error);
         updateFrontend(error, "error");
@@ -218,16 +222,16 @@ async function main() {
       updateFrontend(functionName, "system");
 
     } else if (returnObject.role == "functionReturnValue") {
-     // pass message to LLM API
+      // pass message to LLM API
       LLM_API.send(returnObject.value, "system").then((response) => {
         LLMresponseHandler(response);
-     })
+      })
       updateFrontend(returnObject.value, "system");
     } else if (returnObject.role == "error") {
-       updateFrontend(returnObject.message, "error");
+      updateFrontend(returnObject.message, "error");
     } else if (returnObject.role == "system") {
       // handle notifications from the device   
-       updateFrontend(returnObject.message, "system");
+      updateFrontend(returnObject.message, "system");
     }
     if (returnObject.promise != null) {
       console.log("there is a promise")
@@ -261,17 +265,17 @@ async function main() {
   }
 
   // test camera
-/*
-  captureAndSendImage(config, functionHandler)
-    .then(result => {
-      console.log("Image captured and sent successfully:", result);
-      // Do something with result
-    })
-    .catch(err => {
-      console.error("Error capturing and sending image:", err);
-      // Handle error
-    });
-*/
+  /*
+    captureAndSendImage(config, functionHandler)
+      .then(result => {
+        console.log("Image captured and sent successfully:", result);
+        // Do something with result
+      })
+      .catch(err => {
+        console.error("Error capturing and sending image:", err);
+        // Handle error
+      });
+  */
 }
 
 main();

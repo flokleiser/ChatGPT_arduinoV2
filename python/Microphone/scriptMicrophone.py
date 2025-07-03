@@ -1,5 +1,6 @@
 import pyaudio
 import sounddevice as sd
+import sys
 from Microphone.seeedReSpeaker4mic import ReSpeaker4MicArray 
 from Microphone.ReSpeakerLite import ReSpeakerLite 
 class MicrophoneStream:
@@ -8,7 +9,7 @@ class MicrophoneStream:
         devices = sd.query_devices()
         print("Available audio devices:")
         for i, device in enumerate(devices):
-            print(f"{i}: {device['name']} (Input Channels: {device['max_input_channels']})")    
+            print(f"{i}: {device['name']} (Input Channels: {device['max_input_channels']})", file=sys.stderr)    
 
         self.respeak_active = False
         self.respeaker = None
@@ -18,15 +19,15 @@ class MicrophoneStream:
         for i, device in enumerate(devices):
             if "ReSpeaker Lite" in device['name']:
                 #get product ID
-                print(device)
-                print("ReSpeaker Lite device found")
+                print(device, file=sys.stderr) 
+                print("ReSpeaker Lite device found", file=sys.stderr) 
                 self.respeakerID = 0
                 self.respeak_active = True
                 break
             elif "ReSpeaker" in device['name']:
                 #get product ID
-                print(device)
-                print("ReSpeaker device found")
+                print(device, file=sys.stderr) 
+                print("ReSpeaker device found", file=sys.stderr) 
                 self.respeakerID = 1
                 self.respeak_active = True
                 break
@@ -53,7 +54,7 @@ class MicrophoneStream:
                     input_device_index=input_device
                 )
             except Exception as e:
-                print(f"Could not open audio stream: {e}")
+                print(f"Could not open audio stream: {e}", file=sys.stderr) 
                 raise
     
     def is_voice_active(self):
@@ -83,19 +84,19 @@ class MicrophoneStream:
                 try:
                     self.respeaker.close_stream()
                 except Exception as e:
-                    print(f"Error closing ReSpeaker stream: {e}")
+                    print(f"Error closing ReSpeaker stream: {e}", file=sys.stderr) 
                 try:
                     self.respeaker.p.terminate()
                 except Exception as e:
-                    print(f"Error terminating ReSpeaker PyAudio: {e}")
+                    print(f"Error terminating ReSpeaker PyAudio: {e}", file=sys.stderr) 
             else:
                 try:
                     if self.stream.is_active():
                         self.stream.stop_stream()
                     self.stream.close()
                 except Exception as e:
-                    print(f"Error closing default stream: {e}")
+                    print(f"Error closing default stream: {e}", file=sys.stderr) 
                 try:
                     self.p.terminate()
                 except Exception as e:
-                    print(f"Error terminating default PyAudio: {e}")
+                    print(f"Error terminating default PyAudio: {e}", file=sys.stderr) 
