@@ -16,6 +16,8 @@ class MicrophoneStream:
         self.respeakerID = None
 
         # Try to find ReSpeaker device
+        """
+        
         for i, device in enumerate(devices):
             if "ReSpeaker Lite" in device['name']:
                 #get product ID
@@ -31,7 +33,7 @@ class MicrophoneStream:
                 self.respeakerID = 1
                 self.respeak_active = True
                 break
-
+        """
         if self.respeak_active:
             # Always use ReSpeakerfor audio if available
             if (self.respeakerID == 0):
