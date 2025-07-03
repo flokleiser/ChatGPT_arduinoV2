@@ -2,6 +2,7 @@ import usb.core
 import usb.util
 import pyaudio
 import time
+import sys
 from Microphone.tuning import Tuning
 from Microphone.pixel_ring import PixelRing 
 
@@ -28,14 +29,14 @@ class ReSpeakerLite:
             self.tuning = Tuning(self.dev)
             self.tuning_available = True
             if self.verbose:
-                print("✅ Tuning module available")
+                print("✅ Tuning module available", file=sys.stderr)
         except Exception as e:
             self.tuning_available = False
-            print(f"⚠️ Tuning module not available: {e}")
+            print(f"⚠️ Tuning module not available: {e}", file=sys.stderr)
 
 
     def _init_device(self):
-         print(f"⚠️ init device is not set up")
+         print(f"⚠️ init device is not set up", file=sys.stderr)
        # try:
        #     if self.dev.is_kernel_driver_active(0):
                # self.dev.detach_kernel_driver(0)
@@ -53,21 +54,66 @@ class ReSpeakerLite:
         raise ValueError("ReSpeaker device not found for PyAudio.")
 
     def open_stream(self):
-        if self.stream is None:
-            if self.verbose:
-                print(f"Opening audio stream with rate: {self.rate} and chunk size: {self.chunk}")
+        """Open an audio stream for the ReSpeaker Lite."""
+        try:
+            # First, get the device info to check supported channels
+            device_info = self.p.get_device_info_by_index(self.input_device_index)
+            max_input_channels = int(device_info['maxInputChannels'])
+            
+            print(f"ReSpeaker Lite has {max_input_channels} input channels", file=sys.stderr)
+            
+            # Make sure we're using a valid channel count
+            # ReSpeaker Lite typically has 2 channels
+            input_channels = min(2, max_input_channels)  # Use 2 channels or whatever is available
+            
             self.stream = self.p.open(
                 format=self.format,
-                channels=1,
+                channels=input_channels,  # Use the detected number of channels
                 rate=self.rate,
                 input=True,
                 frames_per_buffer=self.chunk,
                 input_device_index=self.input_device_index
             )
-        return self.stream
+            return self.stream
+        except Exception as e:
+            print(f"Error opening stream for ReSpeaker Lite: {e}", file=sys.stderr)
+            # Try again with just 1 channel as last resort
+            try:
+                self.stream = self.p.open(
+                    format=self.format,
+                    channels=1,  # Fallback to mono
+                    rate=self.rate,
+                    input=True,
+                    frames_per_buffer=self.chunk,
+                    input_device_index=self.input_device_index
+                )
+                print("Opened ReSpeaker Lite with fallback to mono input", file=sys.stderr)
+                return self.stream
+            except Exception as e:
+                print(f"Fatal error opening ReSpeaker Lite stream: {e}", file=sys.stderr)
+                raise
 
     def read(self, chunk=None):
-        return self.stream.read(chunk or self.chunk, exception_on_overflow=False)
+        """Read data from the stream.
+        
+        Returns mono audio even if device has multiple channels.
+        """
+        if chunk is None:
+            chunk = self.chunk
+            
+        data = self.stream.read(chunk, exception_on_overflow=False)
+        
+        # Convert to numpy array to handle multi-channel audio
+        import numpy as np
+        audio_data = np.frombuffer(data, dtype=np.int16)
+        
+        # If stereo, convert to mono by averaging channels
+        if self.stream._channels > 1:
+            audio_data = audio_data.reshape(-1, self.stream._channels)
+            audio_data = np.mean(audio_data, axis=1, dtype=np.int16)
+        
+        # Convert back to bytes
+        return audio_data.tobytes()
 
     def close_stream(self):
         if self.stream is not None:
@@ -85,38 +131,38 @@ class ReSpeakerLite:
             print("Device not found")
             return
         
-        print("\n=== USB Device Information ===")
-        print(f"Vendor ID: 0x{self.dev.idVendor:04x}")
-        print(f"Product ID: 0x{self.dev.idProduct:04x}")
+        print("\n=== USB Device Information ===", file=sys.stderr)
+        print(f"Vendor ID: 0x{self.dev.idVendor:04x}", file=sys.stderr)
+        print(f"Product ID: 0x{self.dev.idProduct:04x}", file=sys.stderr)
         
         # Try to get manufacturer and product strings
         try:
-            print(f"Manufacturer: {usb.util.get_string(self.dev, self.dev.iManufacturer)}")
+            print(f"Manufacturer: {usb.util.get_string(self.dev, self.dev.iManufacturer)}", file=sys.stderr)
         except:
-            print("Manufacturer: Unknown")
+            print("Manufacturer: Unknown", file=sys.stderr)
         
         try:
-            print(f"Product: {usb.util.get_string(self.dev, self.dev.iProduct)}")
+            print(f"Product: {usb.util.get_string(self.dev, self.dev.iProduct)}", file=sys.stderr)
         except:
-            print("Product: Unknown")
+            print("Product: Unknown", file=sys.stderr)
         
         # Configuration and interfaces
         print("\nConfigurations:")
         for cfg in self.dev:
-            print(f"  Configuration {cfg.bConfigurationValue}")
+            print(f"  Configuration {cfg.bConfigurationValue}", file=sys.stderr)
             for intf in cfg:
-                print(f"    Interface {intf.bInterfaceNumber}")
+                print(f"    Interface {intf.bInterfaceNumber}", file=sys.stderr)
                 for ep in intf:
                     print(f"      Endpoint {ep.bEndpointAddress:02x}, " +
                         f"{'IN' if usb.util.endpoint_direction(ep.bEndpointAddress) == usb.util.ENDPOINT_IN else 'OUT'}, " +
-                        f"Type: {ep.bmAttributes & 0x03}")
+                        f"Type: {ep.bmAttributes & 0x03}", file=sys.stderr)
         
         print("============================")
 
     def scan_parameters(self, max_params=50):
         """Scan for available parameters by trying different indices"""
-        print("\n=== Parameter Scan ===")
-        print("This is experimental and may cause unexpected behavior!")
+        print("\n=== Parameter Scan ===", file=sys.stderr)
+        print("This is experimental and may cause unexpected behavior!", file=sys.stderr)
         
         # Command 0x80 is typically "get parameter"
         for i in range(max_params):
@@ -157,7 +203,7 @@ class ReSpeakerLite:
                     data_or_wLength=data_or_length
                 )
         except usb.core.USBError as e:
-            print(f"USB Error in raw parameter request: {e}")
+            print(f"USB Error in raw parameter request: {e}", file=sys.stderr)
             return None
     
 # Example usage:

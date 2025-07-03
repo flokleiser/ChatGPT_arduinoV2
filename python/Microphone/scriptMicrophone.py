@@ -7,7 +7,7 @@ class MicrophoneStream:
     def __init__(self, rate=16000, chunk=1024, format=pyaudio.paInt16):
         # List all available audio devices
         devices = sd.query_devices()
-        print("Available audio devices:")
+        print("Available audio devices:", file=sys.stderr)
         for i, device in enumerate(devices):
             print(f"{i}: {device['name']} (Input Channels: {device['max_input_channels']})", file=sys.stderr)    
 
