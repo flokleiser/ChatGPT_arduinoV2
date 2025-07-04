@@ -13,8 +13,9 @@ class MicrophoneStream:
         for i, device in enumerate(devices):
             print(f"{i}: {device['name']} (Input Channels: {device['max_input_channels']})", file=sys.stderr)    
 
-        self.respeak_active = False
-        self.respeaker = None
+        self.VAD_active = True
+        self.speaker = False
+        self.respeakerActive = False
         self.respeakerID = None
 
         # Try to find ReSpeaker device
@@ -26,72 +27,59 @@ class MicrophoneStream:
                 print(device, file=sys.stderr) 
                 print("ReSpeaker Lite device found", file=sys.stderr) 
                 self.respeakerID = 0
-                self.respeak_active = True
+                self.respeakerActive = True
                 break
             elif "ReSpeaker" in device['name']:
                 #get product ID
                 print(device, file=sys.stderr) 
                 print("ReSpeaker device found", file=sys.stderr) 
                 self.respeakerID = 1
-                self.respeak_active = True
+                self.respeakerActive = True
                 break
 
-        if self.respeak_active:
+        if self.respeakerActive:
             # Always use ReSpeakerfor audio if available
             if (self.respeakerID == 0):
                  #  self.respeaker = ReSpeakerLite(rate=rate, chunk=chunk, format=format)
-                self.respeaker = GenericMicVAD(rate=rate, chunk=chunk, format=format)
+                self.speaker = GenericMicVAD(rate=rate, chunk=chunk, format=format)
             else:
-                self.respeaker = ReSpeaker4MicArray(rate=rate, chunk=chunk, format=format)
+                self.speaker = ReSpeaker4MicArray(rate=rate, chunk=chunk, format=format)
             # fist close any existing stream  
-            self.stream = self.respeaker.open_stream()
         else:
             # Fallback to default input device using PyAudio
-            self.p = pyaudio.PyAudio()
-            input_device = self.p.get_default_input_device_info()['index']
-            try:
-                self.stream = self.p.open(
-                    format=format,
-                    channels=1,
-                    rate=rate,
-                    input=True,
-                    frames_per_buffer=chunk,
-                    input_device_index=input_device
-                )
-            except Exception as e:
-                print(f"Could not open audio stream: {e}", file=sys.stderr) 
-                raise
+            self.speaker = GenericMicVAD(rate=rate, chunk=chunk, format=format)
+        self.stream = self.speaker.open_stream()
     
     def is_voice_active(self):
         """Check if voice is active using ReSpeaker's tuning module."""
-        if self.respeak_active and self.respeaker:
-            return self.respeaker.is_voice_active()
+        if self.VAD_active and self.speaker:
+            return self.speaker.is_voice_active()
         return True 
     
     def is_voice_active_enabled(self):
         """check if voice activity detection is enabled."""
-        if self.respeak_active and self.respeaker:
+        if self.VAD_active and self.speaker:
             return True
         return False 
 
 
     def read(self, chunk=None):  
-        if self.respeak_active and self.respeaker:
-            #direction = self.respeaker.get_doa()
+        if self.VAD_active and self.speaker:
+            #direction = self.speaker.get_doa()
             #print(f"Current direction: {direction}")
-            #print("active:", self.respeaker.is_voice_active()) 
-            return self.respeaker.read(chunk)
+            #print("active:", self.speaker.is_voice_active()) 
+            return self.speaker.read(chunk)
         return self.stream.read(chunk or 1024, exception_on_overflow=False)
 
     def close(self):
             #Closes the audio stream and terminates PyAudio cleanly.
-            if self.respeak_active and self.respeaker:
+            if self.VAD_active and self.speaker:
                 try:
-                    self.respeaker.close_stream()
+                    self.speaker.close_stream()
                 except Exception as e:
                     print(f"Error closing ReSpeaker stream: {e}", file=sys.stderr) 
                 try:
-                    self.respeaker.p.terminate()
+                    self.speaker.p.terminate()
                 except Exception as e:
                     print(f"Error terminating ReSpeaker PyAudio: {e}", file=sys.stderr) 
             else:

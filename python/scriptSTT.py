@@ -35,7 +35,7 @@ CHUNK = 1024      # Frame size
 THRESHOLD = 1000  # Adjust this to match your environment's noise level
 
 MODEL_PATH = "STTmodels/"  # Default model path
-MODEL_DEFAULT = "vosk-model-en-us-0.22"  # Default model https://alphacephei.com/vosk/models/vosk-model-en-us-0.22.zip
+MODEL_DEFAULT = "vosk-model-small-en-us-0.15"  # Default model https://alphacephei.com/vosk/models/vosk-model-en-us-0.22.zip
 MODEL_SMALL= "vosk-model-small-en-us-0.15"  # Default model
 MODEL_EN_LARGE = "vosk-model-en-us-0.22"       # Large English model
 MODEL_DE_SMALL = "vosk-model-small-de-0.15"    # German model
@@ -108,9 +108,9 @@ class SpeechRecognizer:
         print("\nSpeak now...", file=sys.stderr)
 
         # Check if voice gating is available
-        has_voice_gate = (hasattr(self.audio_source, "respeaker") and 
-                          hasattr(self.audio_source.respeaker, "is_voice_active") and 
-                          callable(getattr(self.audio_source.respeaker, "is_voice_active", None)))
+        has_voice_gate = (hasattr(self.audio_source, "speaker") and 
+                          hasattr(self.audio_source.speaker, "is_voice_active") and 
+                          callable(getattr(self.audio_source.speaker, "is_voice_active", None)))
         
         print(f"Voice gating {'enabled' if has_voice_gate else 'disabled'}", file=sys.stderr)
         
@@ -129,9 +129,10 @@ class SpeechRecognizer:
 
         while self.running:
             # --- Voice timing threshold logic ---
-            voice_now = self.audio_source.respeaker.is_voice_active()
+            voice_now = self.audio_source.speaker.is_voice_active()
+            
             current_time = time.time()
-
+            
             if voice_now:
                 if voice_on_since is None:
                     voice_on_since = current_time
@@ -221,11 +222,11 @@ class SpeechRecognizer:
     
     def pause(self):
         self.PAUSE = True
-        print("Recognizer paused.", file=sys.stderr)
+        print(f"Recognizer paused, Time: {time.time()}", file=sys.stderr)
 
     def resume(self):
         self.PAUSE = False
-        print("Recognizer resumed.", file=sys.stderr)
+        print(f"Recognizer resumed, Time: {time.time()}", file=sys.stderr)
 
     def stop(self):
         self.running = False
@@ -256,15 +257,15 @@ def STTCallBack(text, partial):
     direction = None
     # Try to get DoA if mic has get_doa or get_direction
     if (
-        hasattr(mic, "respeaker")
-        and hasattr(mic.respeaker, "is_voice_active")
-        and callable(getattr(mic.respeaker, "is_voice_active", None))
-        and mic.respeaker.is_voice_active()
-        and hasattr(mic.respeaker, "get_doa")
-        and callable(getattr(mic.respeaker, "get_doa", None))
+        hasattr(mic, "speaker")
+        and hasattr(mic.speaker, "is_voice_active")
+        and callable(getattr(mic.speaker, "is_voice_active", None))
+        and mic.speaker.is_voice_active()
+        and hasattr(mic.speaker, "get_doa")
+        and callable(getattr(mic.speaker, "get_doa", None))
     ):
         try:
-            direction = mic.respeaker.get_doa()
+            direction = mic.speaker.get_doa()
         except Exception:
             direction = None
     if text:
@@ -309,9 +310,7 @@ def setUpSpeechToText():
     
     # Initialize microphone
     mic = MicrophoneStream(rate=RATE, chunk=CHUNK)
-    if(mic.respeak_active):
-        print("ReSpeaker is active, using it for audio input.", file=sys.stderr)
-    
+
     # Initialize recognizer
     _recognizer = SpeechRecognizer(audio_source=mic, size="medium", callback=STTCallBack, rate=RATE, chunk=CHUNK)
     _recognizer_ready.set()

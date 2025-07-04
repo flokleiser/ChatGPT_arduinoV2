@@ -5,7 +5,7 @@ import os
 import sys
 import importlib.util
 
-class WebRTCVAD:
+class VAD:
     """Voice Activity Detection using Google's WebRTC VAD"""
     
     def __init__(self, 
@@ -145,6 +145,7 @@ class WebRTCVAD:
                 
                 # Require both enough positive frames in history AND some consecutive frames
                 if speech_frames >= self.positive_frames_threshold and self.consecutive_speech_frames >= self.min_speech_frames:
+                   # print("Speech detected", file=sys.stderr)
                     result = True
                     self.last_speech_time = time.time()
                 elif self.smoothing and self.last_speech_time is not None:
@@ -243,5 +244,4 @@ class WebRTCVAD:
         
         return True
 
-# For compatibility with existing code
-SileroVAD = WebRTCVAD  # Alias to allow drop-in replacement
+#

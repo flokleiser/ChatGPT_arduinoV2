@@ -126,7 +126,7 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
             stream.stop()
             stream.close()
              # add 0.5 delay before sending stopped message
-            sd.sleep(500)
+            sd.sleep(600)
             print(f"tts stopped", file=sys.stderr)
             send_message("tts", "stopped")
             

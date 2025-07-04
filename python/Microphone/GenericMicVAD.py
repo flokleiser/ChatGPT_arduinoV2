@@ -4,7 +4,7 @@ import time
 import numpy as np
 import pyaudio
 
-from Microphone.vad_utils import WebRTCVAD
+from Microphone.vad_utils import VAD
 
 class GenericMicVAD:
     """Generic microphone class with Voice Activity Detection."""
@@ -26,7 +26,7 @@ class GenericMicVAD:
         self.vad_enabled = True
         self.audio_buffer = b''  # Store the most recent audio data
         self.frame_duration_ms = int((self.chunk / self.rate) * 1000)  # Convert chunk size to milliseconds
-        self.vad = WebRTCVAD(aggressiveness=3, sampling_rate=rate, frame_duration_ms=self.frame_duration_ms, energy_threshold=200)
+        self.vad = VAD(aggressiveness=3, sampling_rate=rate, frame_duration_ms=self.frame_duration_ms, energy_threshold=200)
         
         # Print device info
         if self.verbose:
@@ -36,9 +36,9 @@ class GenericMicVAD:
             
         # Print VAD status
         if self.vad.enabled:
-            print("Silero VAD initialized successfully", file=sys.stderr)
+            print(" VAD initialized successfully", file=sys.stderr)
         else:
-            print("Warning: Silero VAD failed to initialize. Voice detection will be disabled.", file=sys.stderr)
+            print("Warning:  VAD failed to initialize. Voice detection will be disabled.", file=sys.stderr)
             self.vad_enabled = False
 
     def _find_suitable_device(self):

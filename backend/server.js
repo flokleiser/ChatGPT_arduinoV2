@@ -263,7 +263,7 @@ async function main() {
   }
 
   // test camera
-  
+  /*
     captureAndSendImage(config, functionHandler)
       .then(result => {
         console.log("Image captured and sent successfully:", result);
@@ -273,8 +273,9 @@ async function main() {
         console.error("Error capturing and sending image:", err);
         // Handle error
       });
-  
+    */
 }
+    
 
 main();
 
