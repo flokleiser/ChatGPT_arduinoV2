@@ -22,9 +22,9 @@ npm install
 echo "Setting up Python environment and installing packages..."
 python3 -m venv python/venv
 source python/venv/bin/activate
-pip3 install pyaudio vosk sounddevice numpy piper pyusb
+pip3 install pyaudio vosk sounddevice numpy piper pyusb requests 
 pip3 install --no-deps -r python/requirements.txt
-pip3 install onnxruntime
+pip3 install onnxruntime webrtcvad
 
 # install STT and TTS models
 echo "Installing STT and TTS models..."

@@ -85,8 +85,7 @@ source python/venv/bin/activate
 
 pip3 install vosk numpy piper pyusb sounddevice requests  
 pip3 install --no-deps -r python/requirements.txt
-pip3 install onnxruntime pyaudio 
-pip3 install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+pip3 install onnxruntime pyaudio webrtcvad 
 
 
 
@@ -169,7 +168,6 @@ Add the .desktop file to /.config/autostart/ with the following content:
 ```
 ###  Todo
 
-- integrate general purpose voice activity detection
 - Autorestart when config changed or Arduino disconnected
 - Pass all errors to frontend display
 - Compete image integration 

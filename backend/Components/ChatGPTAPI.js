@@ -196,7 +196,7 @@ class ChatGPTAPI {
     const messages = [
       {
         role: "system",
-        content: "Describe the image. Be specific about the objects, people, colors, textures, and context.",
+        content: "Describe the image. Be specific about the objects, people, colors. Only say a little about the context.",
       },
       {
         role: role,

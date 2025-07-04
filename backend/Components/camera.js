@@ -14,7 +14,9 @@ export async function captureAndSendImage(config, functionHandler) {
   const Webcam = NodeWebcam.create(opts);
 
   return new Promise((resolve, reject) => {
-    Webcam.capture("test_image", async function (err, data) {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const fileName = `scratch_files/test_image_${timestamp}`;
+    Webcam.capture(fileName, async function (err, data) {
       if (err) {
         console.error("Webcam error:", err);
         return reject(err);
@@ -26,10 +28,11 @@ export async function captureAndSendImage(config, functionHandler) {
         cleanBase64 = data.replace(/^data:image\/png;base64,/, "");
       }
 
-      // Save the image to disk for verification
-      const imageBuffer = Buffer.from(cleanBase64, "base64");
-      fs.writeFileSync("test_image.png", imageBuffer);
-      console.log("Image saved as test_image.png");
+      // Save the image to disk with time stamp for verification 
+      //const imageBuffer = Buffer.from(cleanBase64, "base64");
+    
+     // fs.writeFileSync(fileName, imageBuffer);
+      console.log("Image saved as:"+fileName);
 
       // Prepare base64 string for OpenAI API
       const base64Image = `data:image/png;base64,${cleanBase64}`;
