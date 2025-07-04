@@ -1,45 +1,167 @@
-import NodeWebcam from "node-webcam";
-import ChatGPTAPI from "./ChatGPTAPI.js";
+import { exec } from 'child_process';
 import fs from "fs";
+import path from "path";
+import ChatGPTAPI from "./ChatGPTAPI.js";
+import NodeWebcam from "node-webcam";
 
 export async function captureAndSendImage(config, functionHandler) {
-  console.log("Capturing image from webcam...");
+  console.log("Capturing image...");
+  
+  // Create scratch_files directory if it doesn't exist
+  const scratchDir = "scratch_files";
+  if (!fs.existsSync(scratchDir)) {
+    fs.mkdirSync(scratchDir);
+  }
+  
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const fileName = path.join(scratchDir, `test_image_${timestamp}`);
+  const fullFileName = `${fileName}.jpg`;
+  
+  // Better platform detection logic
+  const platform = process.platform;
+  const isArm = process.arch === 'arm' || process.arch === 'arm64';
+  
+  // Only use Pi-specific methods on Linux ARM devices
+  const isRaspberryPi = platform === 'linux' && isArm;
+  
+  console.log(`Detected platform: ${platform}, architecture: ${process.arch}`);
+  console.log(`Using ${isRaspberryPi ? 'Raspberry Pi' : 'standard'} capture method`);
+  
+  if (isRaspberryPi) {
+    return captureWithDirectCommands(fullFileName, config, functionHandler);
+  } else {
+    return captureWithNodeWebcam(fileName, config, functionHandler);
+  }
+}
+// For non-Pi devices (Mac, Windows, etc)
+function captureWithNodeWebcam(fileName, config, functionHandler) {
+  console.log("Using node-webcam for image capture...");
+  
   const opts = {
     width: 640,
     height: 480,
     quality: 100,
-    output: "png",
-    callbackReturn: "base64", // <-- THIS IS REQUIRED!
+    output: "jpeg",
+    callbackReturn: "base64",
   };
+  
   const Webcam = NodeWebcam.create(opts);
-
+  
   return new Promise((resolve, reject) => {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const fileName = `scratch_files/test_image_${timestamp}`;
     Webcam.capture(fileName, async function (err, data) {
       if (err) {
         console.error("Webcam error:", err);
         return reject(err);
       }
-
-          // Remove prefix if present
+      
+      // Remove prefix if present
       let cleanBase64 = data;
-      if (data.startsWith("data:image/png;base64,")) {
+      if (data.startsWith("data:image/jpeg;base64,")) {
+        cleanBase64 = data.replace(/^data:image\/jpeg;base64,/, "");
+      } else if (data.startsWith("data:image/png;base64,")) {
         cleanBase64 = data.replace(/^data:image\/png;base64,/, "");
       }
-
-      // Save the image to disk with time stamp for verification 
-      //const imageBuffer = Buffer.from(cleanBase64, "base64");
-    
-     // fs.writeFileSync(fileName, imageBuffer);
-      console.log("Image saved as:"+fileName);
-
+      
+      console.log("Image captured with node-webcam");
+      
       // Prepare base64 string for OpenAI API
-      const base64Image = `data:image/png;base64,${cleanBase64}`;
-      const chatgpt = new ChatGPTAPI(config, functionHandler);
-      const result = await chatgpt.sendImage(base64Image, "user");
-      console.log("Vision API result:", result);
-      resolve(result);
+      const base64Image = `data:image/jpeg;base64,${cleanBase64}`;
+      try {
+        const chatgpt = new ChatGPTAPI(config, functionHandler);
+        const result = await chatgpt.sendImage(base64Image, "user");
+        console.log("Vision API result received");
+        resolve(result);
+      } catch (apiErr) {
+        console.error("Error with Vision API:", apiErr);
+        reject(apiErr);
+      }
     });
+  });
+}
+
+// For Raspberry Pi devices
+function captureWithDirectCommands(fileName, config, functionHandler) {
+  console.log("Using direct commands for Raspberry Pi image capture...");
+  
+  return new Promise((resolve, reject) => {
+    // Try different methods to capture an image
+    tryCaptureMethods(fileName, 0, async (success) => {
+      if (!success) {
+        return reject(new Error("All camera capture methods failed"));
+      }
+      
+      try {
+        // Read the captured image file
+        const imageBuffer = fs.readFileSync(fileName);
+        const base64Image = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
+        
+        console.log(`Image captured and saved as: ${fileName}`);
+        
+        // Send to Vision API
+        const chatgpt = new ChatGPTAPI(config, functionHandler);
+        const result = await chatgpt.sendImage(base64Image, "user");
+        console.log("Vision API result received");
+        resolve(result);
+      } catch (fileErr) {
+        console.error("Error processing image file:", fileErr);
+        reject(fileErr);
+      }
+    });
+  });
+}
+
+// Try multiple camera capture methods in sequence
+function tryCaptureMethods(fileName, methodIndex, callback) {
+  const methods = [
+    // Method 1: libcamera-still (newer Pi OS)
+    `libcamera-still -o ${fileName} --width 640 --height 480 --immediate --nopreview`,
+    
+    // Method 2: raspistill (older Pi OS)
+    `raspistill -o ${fileName} -w 640 -h 480 -n`,
+    
+    // Method 3: fswebcam with YUYV format (often works when default fails)
+    `fswebcam -r 640x480 --no-banner --set "pixel_format=YUYV" ${fileName}`,
+    
+    // Method 4: fswebcam with MJPEG format
+    `fswebcam -r 640x480 --no-banner --set "pixel_format=MJPEG" ${fileName}`,
+    
+    // Method 5: fswebcam normal with lower resolution
+    `fswebcam -r 320x240 --no-banner --jpeg 85 ${fileName}`,
+    
+    // Method 6: fswebcam with lowest resolution as last resort
+    `fswebcam -r 160x120 --no-banner --jpeg 85 ${fileName}`
+  ];
+  
+  if (methodIndex >= methods.length) {
+    console.error("All camera capture methods failed");
+    return callback(false);
+  }
+  
+  console.log(`Trying camera method ${methodIndex + 1}/${methods.length}: ${methods[methodIndex]}`);
+  
+  exec(methods[methodIndex], (err, stdout, stderr) => {
+    if (err) {
+      console.log(`Method ${methodIndex + 1} failed: ${err.message}`);
+      console.log(`stderr: ${stderr}`);
+      // Try next method
+      tryCaptureMethods(fileName, methodIndex + 1, callback);
+    } else {
+      // Check if file exists and has content
+      try {
+        const stats = fs.statSync(fileName);
+        if (stats.size > 100) { // File exists and has some content
+          console.log(`Successfully captured image with method ${methodIndex + 1}`);
+          callback(true);
+        } else {
+          console.log(`Method ${methodIndex + 1} created an empty or corrupt file`);
+          // Try next method
+          tryCaptureMethods(fileName, methodIndex + 1, callback);
+        }
+      } catch (e) {
+        console.log(`Method ${methodIndex + 1} failed to create a valid file`);
+        // Try next method
+        tryCaptureMethods(fileName, methodIndex + 1, callback);
+      }
+    }
   });
 }
