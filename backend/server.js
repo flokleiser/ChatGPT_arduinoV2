@@ -152,8 +152,6 @@ async function main() {
   }
 
   function broadcastUpdate(data) {
-    console.log("Broadcasting update to all clients");
-    console.log(data);
     //   const data = JSON.stringify({ variable: textIn, messageINComplete: complete,  messageOut: textOut });
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {

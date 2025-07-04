@@ -26,9 +26,12 @@ def download_and_extract_model(model_name, output_dir, base_url=None):
         elif "vosk" in model_name.lower():
             # STT model - Vosk
             base_url = "https://alphacephei.com/vosk/models/"
+            print(f"name of models: {model_name}", file=sys.stderr)
             if not model_name.endswith(".zip"):
+                print(f"adding .zip to {model_name}", file=sys.stderr)
                 model_name = f"{model_name}.zip"
         else:
+            
             # Try to guess based on file extension
             if model_name.endswith(".zip"):
                 base_url = "https://alphacephei.com/vosk/models/"

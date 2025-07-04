@@ -3,6 +3,8 @@ import sounddevice as sd
 import sys
 from Microphone.seeedReSpeaker4mic import ReSpeaker4MicArray 
 from Microphone.ReSpeakerLite import ReSpeakerLite 
+from Microphone.GenericMicVAD import GenericMicVAD
+
 class MicrophoneStream:
     def __init__(self, rate=16000, chunk=1024, format=pyaudio.paInt16):
         # List all available audio devices
@@ -16,7 +18,7 @@ class MicrophoneStream:
         self.respeakerID = None
 
         # Try to find ReSpeaker device
-        """
+        
         
         for i, device in enumerate(devices):
             if "ReSpeaker Lite" in device['name']:
@@ -33,11 +35,12 @@ class MicrophoneStream:
                 self.respeakerID = 1
                 self.respeak_active = True
                 break
-        """
+
         if self.respeak_active:
             # Always use ReSpeakerfor audio if available
             if (self.respeakerID == 0):
-                self.respeaker = ReSpeakerLite(rate=rate, chunk=chunk, format=format)
+                 #  self.respeaker = ReSpeakerLite(rate=rate, chunk=chunk, format=format)
+                self.respeaker = GenericMicVAD(rate=rate, chunk=chunk, format=format)
             else:
                 self.respeaker = ReSpeaker4MicArray(rate=rate, chunk=chunk, format=format)
             # fist close any existing stream  
@@ -67,7 +70,7 @@ class MicrophoneStream:
     
     def is_voice_active_enabled(self):
         """check if voice activity detection is enabled."""
-        if self.respeak_active and self.respeaker and self.respeakerID == 1:
+        if self.respeak_active and self.respeaker:
             return True
         return False 
 
