@@ -208,3 +208,34 @@ function addVolumeControl() {
     });
 
 }
+
+// Simple version - just shows offline status
+function simpleConnectionCheck() {
+    function showOfflineMessage() {
+        if (!navigator.onLine) {
+            const msg = document.createElement('div');
+            msg.style.cssText = `
+                position: fixed; top: 50%; left: 50%; transform: translateX(-50%);
+                background: #f44336; color: white; padding: 10px 20px;
+                border-radius: 4px; z-index: 9999; font-weight: bold;
+            `;
+            msg.textContent = 'No Internet Connection';
+            document.body.appendChild(msg);
+            
+            // Remove when back online
+            const removeMsg = () => {
+                if (navigator.onLine && msg.parentNode) {
+                    document.body.removeChild(msg);
+                    window.removeEventListener('online', removeMsg);
+                }
+            };
+            window.addEventListener('online', removeMsg);
+        }
+    }
+    
+    window.addEventListener('offline', showOfflineMessage);
+    if (!navigator.onLine) showOfflineMessage(); // Check on load
+}
+
+// Call this when page loads
+window.addEventListener('DOMContentLoaded', simpleConnectionCheck);

@@ -65,7 +65,7 @@ chmod +x setup-and-run.sh
   sudo apt install -y nodejs chromium-browser git
   sudo apt-get install libusb-1.0-0-dev
   sudo apt install portaudio19-dev
-
+  sudo apt install fswebcam
 
 On macOS:
   brew install nodejs
@@ -121,8 +121,8 @@ or for development:
 ### 6. **Set Up Kiosk Mode and autostart**
 
 ```bash
-chmod +x runPi.sh
-./runPi.sh
+chmod +x run.sh
+./run.sh
 ```
 
 ###  Debuging with terminal 

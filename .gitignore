@@ -16,7 +16,7 @@ yarn-error.log*
 
 python/STTmodels/
 python/TTSmodels/
-scratch_files/
+scratch_files
 # Python cache
 __pycache__/
 *.pyc

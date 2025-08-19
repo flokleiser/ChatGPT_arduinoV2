@@ -43,10 +43,10 @@ AUTOSTART_DIR="/home/pi/.config/autostart"
 sudo mkdir -p "$AUTOSTART_DIR"
 
 # Create the autostart .desktop file
-cat > "$AUTOSTART_DIR/sentient-app.desktop" << EOF
+cat > "$AUTOSTART_DIR/.desktop" << EOF
 [Desktop Entry]
 Type=Application
-Name=Sentient App
+Name=ChatGPT_arduinoV2
 Exec=$(realpath ./run.sh)
 Path=$(realpath)
 Icon=utilities-terminal
