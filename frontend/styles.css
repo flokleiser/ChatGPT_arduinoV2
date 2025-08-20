@@ -102,7 +102,7 @@ body {
 
 .system {
   color: rgb(84, 161, 255);
-  font-size: 1.8vw;
+  font-size: 1.1vw;
 }
 
 .assistant {
@@ -111,7 +111,7 @@ body {
 
 .error {
   color: rgb(255, 255, 0);
-  font-size: 1.8vw;
+  font-size: 1.1vw;
 }
 
 /* Define the styles for the microphone circle */

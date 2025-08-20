@@ -47,11 +47,12 @@ function connectToWebSocket() {
                 }
 
                 if (data.backEnd.messageType == "system") {
-                    window.assistant = data.backEnd.message;
+                    window.system = data.backEnd.message;
                     updateDialogContent(".system", window.system);
                 }
                 if (data.backEnd.messageType == "error") {
-                    window.assistant = data.backEnd.message;
+                    window.error = data.backEnd.message;
+                    console.log(data.backEnd.message)
                     updateDialogContent(".error", window.error);
                 }
 

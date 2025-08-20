@@ -44,6 +44,12 @@ git clone https://github.com/IAD-ZHDK/ChatGPT_arduinoV2.git
 cd ChatGPT_arduinoV2
 ```   
 
+### **Get lattest version after installing**
+
+Navigate to the path of the project and run this line
+```bash
+git fetch
+```  
 
 ## Quick start
 
@@ -125,7 +131,7 @@ chmod +x run.sh
 ./run.sh
 ```
 
-###  Debuging with terminal 
+### Debuging with terminal 
 
 - Install wscat for terminal websocket connections
 ```bash
@@ -155,8 +161,6 @@ Add the .desktop file to /.config/autostart/ with the following content:
   Icon=utilities-terminal
   Terminal=false
 ```
-
-
 
 ### setup wifi WPA2 enterprise
 ```bash
