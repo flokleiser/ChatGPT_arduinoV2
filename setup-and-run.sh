@@ -40,18 +40,23 @@ fi
 echo "Setting up backend and frontend to start on boot..."
 # Create desktop file in autostart
 AUTOSTART_DIR="/home/pi/.config/autostart"
-sudo mkdir -p "$AUTOSTART_DIR"
+mkdir -p "$AUTOSTART_DIR"
 
 # Create the autostart .desktop file
-cat > "$AUTOSTART_DIR/.desktop" << EOF
+cat > "$AUTOSTART_DIR/chatgpt-arduino.desktop" << EOF
 [Desktop Entry]
 Type=Application
 Name=ChatGPT_arduinoV2
+Comment=Start ChatGPT_arduinoV2 Kiosk
 Exec=$(realpath ./run.sh)
 Path=$(realpath)
 Icon=utilities-terminal
 Terminal=false
+
 EOF
+
+# Make the desktop file executable
+chmod +x "$AUTOSTART_DIR/chatgpt-arduino.desktop"
 
 echo "Making run.sh executable..."
 chmod +x ./run.sh

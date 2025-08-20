@@ -22,8 +22,6 @@ OPENAI_API_KEY='******************************'
   ```bash
   ssh <username>@<devicename>.local
   ```
-
-Allow the device to reboot. 
  
   
 IMPORTANT: Enable Serial Interface
@@ -37,6 +35,9 @@ In config select "Interfacing Options" > "Serial".
 "Would you like a login shell to be accessible over serial?" > NO
 "Would you like the serial port hardware to be enabled?" > Yes
 
+In config select "Interfacing Options" > "I2C" > Yes
+
+
 
 ### **Clone the Repository**
 ```bash
@@ -48,7 +49,7 @@ cd ChatGPT_arduinoV2
 
 Navigate to the path of the project and run this line
 ```bash
-git fetch
+git pull
 ```  
 
 ## Quick start
@@ -92,8 +93,6 @@ source python/venv/bin/activate
 pip3 install vosk numpy piper pyusb sounddevice requests  
 pip3 install --no-deps -r python/requirements.txt
 pip3 install onnxruntime pyaudio webrtcvad 
-
-
 
 ### 4. setup .env file
 
@@ -153,11 +152,12 @@ chmod +x run.sh
 Add the .desktop file to /.config/autostart/ with the following content:
 
 ```bash
+  [Desktop Entry]
   Type=Application
-  Name=Sentient Senses
-  Comment=Start Sentient Senses Kiosk
-  Exec=<path>run.sh
-  Path=<path>
+  Name=ChatGPT_arduinoV2
+  Comment=Start ChatGPT_arduinoV2 Kiosk
+  Exec=/home/pi/ChatGPT_arduinoV2/run.sh
+  Path=/home/pi/ChatGPT_arduinoV2/
   Icon=utilities-terminal
   Terminal=false
 ```
