@@ -152,7 +152,8 @@ class SerialCommunication extends ICommunicationMethod {
     });
   }
 
-  async closePort() {
+  async close() {
+    // close the port if it's open
     if (this.port && this.port.isOpen) {
       return new Promise((resolve, reject) => {
         this.port.close((err) => {

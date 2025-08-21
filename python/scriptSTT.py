@@ -32,7 +32,7 @@ else:
 DEVICE_INDEX = 0  # Update this to match speaker device index
 RATE = 16000      # Sample rate
 CHUNK = 1024      # Frame size
-THRESHOLD = 1000  # Adjust this to match your environment's noise level
+THRESHOLD = 200  # Adjust this to match your environment's noise level
 
 MODEL_PATH = "STTmodels/"  # Default model path
 MODEL_DEFAULT = "vosk-model-small-en-us-0.15"  # Default model https://alphacephei.com/vosk/models/vosk-model-en-us-0.22.zip

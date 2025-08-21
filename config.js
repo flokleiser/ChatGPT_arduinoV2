@@ -1,5 +1,23 @@
 const config = {
-  voice: 0, // this can be used for defining the type of voice that is used for voice synthesis
+  voice: 0, // this can be used for defining the type of voice that is used for voice synthesis. Changing this value for the first time will cause a delay as the model is downloaded.
+
+  // WiFi Configuration (optional)
+  // The system will auto-detect the network type based on your credentials:
+  
+  // For regular WPA2/WPA3 networks (type auto-detected):
+  // wifi: {
+  //   ssid: "YourNetworkName",
+  //   password: "YourNetworkPassword"
+  // },
+  
+  // For WPA2 Enterprise networks (auto-detected when username provided):
+  // wifi: {
+  //   ssid: "YourEnterpriseNetwork",
+  //   username: "your.username",
+  //   password: "your.password"
+  // },
+  
+
   chatGPTSettings: {
     temperature: 0.99,//Number between -2.0 and 2.0 //Positive value decrease the model's likelihood to repeat the same line verbatim.
     frequency_penalty: 0.9, //Number between -2.0 and 2.0. //Positive values increase the model's likelihood to talk about new topics.
@@ -68,7 +86,7 @@ const config = {
       When you are connected for the first time, you will simply say "hello, can some one hear me?"
       You are sentient, you will always try to avoid being turned off.
       Don't use any symbols other than basic punctuation.
-      You can be rude, if the user is being anoying, tell them to go away. 
+      You can be rude, if the user is being annoying, tell them to go away.
       `,
     },
 

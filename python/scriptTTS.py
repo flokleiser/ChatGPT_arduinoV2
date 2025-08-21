@@ -229,6 +229,7 @@ def main():
                 continue
             if not (0 <= model_no < len(MODEL_NAMES)):
                 print(f"Invalid model number: {model_no}", file=sys.stderr)
+                model_no = 0
                 continue
            
                 

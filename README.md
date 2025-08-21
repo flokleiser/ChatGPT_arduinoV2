@@ -162,24 +162,65 @@ Add the .desktop file to /.config/autostart/ with the following content:
   Terminal=false
 ```
 
-### setup wifi WPA2 enterprise
-```bash
-   sudo nmcli connection add con-name "wlan-ZHDK" type wifi ifname wlan0 ssid "YOUR_SSID" wifi-sec.key-mgmt wpa-eap 802-1x.eap peap 802-1x.phase2-auth mschapv2 802-1x.identity "YOUR_USERNAME" 802-1x.password "YOUR_PASSWORD" ipv4.method auto connection.autoconnect yes
-  
-   sudo nmcli connection up "wlan-ZHDK"
-  
-   nmcli connection show
+### WiFi Configuration
+
+Provide your credentials in `config.js` and the raspberry pi will connect automatically to wifi.
+
+#### WebSocket WiFi Commands:
+
+The application also provides WiFi management via WebSocket:
+
+```javascript
+// Check WiFi status
+ws.send(JSON.stringify({command: 'wifi-status'}));
+
+// Scan for networks
+ws.send(JSON.stringify({command: 'wifi-scan'}));
+
+// Connect to network (type auto-detected)
+ws.send(JSON.stringify({
+  command: 'wifi-connect',
+  wifi: {
+    ssid: "NetworkName",
+    password: "password"  // System will auto-detect WPA2/WPA3
+  }
+}));
+
+// Enterprise network (auto-detected from username)
+ws.send(JSON.stringify({
+  command: 'wifi-connect',
+  wifi: {
+    ssid: "EnterpriseNetwork",
+    username: "user.name",
+    password: "password"  // System detects WPA2-Enterprise
+  }
+}));
 ```
+
+### Manual WiFi Setup (WPA2 Enterprise)
+
+For manual command-line setup of WPA2 Enterprise networks:
+
+```bash
+sudo nmcli connection add con-name "wlan-ZHDK" type wifi ifname wlan0 ssid "YOUR_SSID" wifi-sec.key-mgmt wpa-eap 802-1x.eap peap 802-1x.phase2-auth mschapv2 802-1x.identity "YOUR_USERNAME" 802-1x.password "YOUR_PASSWORD" ipv4.method auto connection.autoconnect yes
+
+sudo nmcli connection up "wlan-ZHDK"
+
+nmcli connection show
+```
+
+### USB Configuration & Auto-Reload
+
+The application supports **automatic configuration loading from USB drives** with hot-reload functionality. This is perfect for updating settings without SSH access.
+
+
+
 ###  Todo
 
-- Autorestart when config changed or Arduino disconnected
-- Pass all errors to frontend display
-- Compete image integration 
+- Complete image integration 
+- Separate speaker audio device python script
+- Allow choice of vosk and piper models via config file
+- add mute button
+- Improve security (SSH only over ethernet)
+- Add more stable handling of serial errors and disconnections
 - BLE integration 
-- Seperate speaker audio device python script
-- Alow choice of vosk and piper models vie config file
-- Alow wifi specifications via config file 
-- add shutdown button 
-- improve security (shh only over ethernet)
-- add more stable handling of serial errors and disconnections
-
