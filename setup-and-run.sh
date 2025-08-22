@@ -22,13 +22,10 @@ npm install
 echo "Setting up Python environment and installing packages..."
 python3 -m venv python/venv
 source python/venv/bin/activate
-pip3 install pyaudio vosk sounddevice numpy piper pyusb requests 
 pip3 install --no-deps -r python/requirements.txt
-pip3 install onnxruntime webrtcvad
 
-# install STT and TTS models
-echo "Installing STT and TTS models..."
-# TODO
+
+# TODO  install STT and TTS models
 
 echo "Setting up autostart for kiosk mode..."
 # Add Chromium kiosk mode to autostart
@@ -52,11 +49,8 @@ Exec=$(realpath ./run.sh)
 Path=$(realpath)
 Icon=utilities-terminal
 Terminal=false
-
 EOF
 
-# Make the desktop file executable
-chmod +x "$AUTOSTART_DIR/chatgpt-arduino.desktop"
 
 echo "Making run.sh executable..."
 chmod +x ./run.sh

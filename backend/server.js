@@ -109,6 +109,17 @@ async function main() {
       console.log('No WiFi configuration found in config.js');
     }
 
+     // 1. Initialize communication method based on config
+    console.log('📡 Initializing communication...');
+    if (config.communicationMethod == "BLE") {
+      console.log("BLE communication not yet implemented");
+      currentInstances.communicationMethod = new ICommunicationMethod(comCallback);
+    } else if (config.communicationMethod == "Serial") {
+      currentInstances.communicationMethod = new SerialCommunication(comCallback);
+    } else {
+      currentInstances.communicationMethod = new ICommunicationMethod(comCallback);
+    }
+
 
 
     // Setup function handler
@@ -123,7 +134,7 @@ async function main() {
       console.log("com callback");
       console.log(message);
       // pass messages directly from the arduino to to LLM API
-      LLM_API.send(message, "user").then((response) => {
+      LLM_API.send(message, "system").then((response) => {
         LLMresponseHandler(response);
       });
     }
@@ -152,17 +163,7 @@ async function main() {
       }
     }
 
-    // 1. Initialize communication method based on config
-    console.log('📡 Initializing communication...');
-    if (config.communicationMethod == "BLE") {
-      console.log("BLE communication not yet implemented");
-      currentInstances.communicationMethod = new ICommunicationMethod(comCallback);
-    } else if (config.communicationMethod == "Serial") {
-      currentInstances.communicationMethod = new SerialCommunication(comCallback);
-    } else {
-      currentInstances.communicationMethod = new ICommunicationMethod(comCallback);
-    }
-
+   
     // 2. Initialize speech to text
     console.log('🎤 Initializing speech to text...');
     currentInstances.speechToText = new SpeechToText(callBackSpeechToText);

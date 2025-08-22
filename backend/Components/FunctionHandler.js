@@ -109,10 +109,11 @@ class FunctionHandler {
 
     returnObject.arguments = functionArguments;
     //functionArguments.defaultValue = "nothing";
-    console.log("arguments:", functionArguments);
+    console.log(functionName," arguments:", functionArguments);
 
     // Check if function exists in communication method or local functions
     const comMethod = this.comObject.getMethod(functionName);
+    console.log("comMethod:", comMethod);
     let functionReturnPromise;
     // Handle communication method or local function
     if (comMethod || this.allFunctions.some(obj => obj.name === functionName)) {
@@ -142,7 +143,7 @@ class FunctionHandler {
         functionReturnPromise = method.call(this.comObject);
       } else {
         // Standard function
-         console.log("standard function call with name:", functionName);
+        console.log("standard function call with name:", functionName);
         const funcDef = this.allFunctions.find(f => f.name === functionName);
         /// ignore uuid if not defined
         if (funcDef.uuid != undefined) {

@@ -1,3 +1,10 @@
-numpy==1.26.4
-piper-phonemize-fix==1.2.1
-piper-tts==1.2.0
+pyaudio 
+vosk 
+sounddevice 
+numpy 
+piper-tts
+pyusb 
+requests
+onnxruntime 
+webrtcvad
+setuptools<81

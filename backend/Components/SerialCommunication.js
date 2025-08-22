@@ -9,7 +9,12 @@ class SerialCommunication extends ICommunicationMethod {
     this.port = null;
     this.parser = null;
     this.callback = callback;
+    this.reconectInterval = null;
 
+    this.connect();
+  }
+
+  connect() {
     // List available ports and connect to Arduino
     SerialPort.list().then((ports) => {
       const portObject = ports.find(
@@ -28,9 +33,7 @@ class SerialCommunication extends ICommunicationMethod {
       this.parser = this.port.pipe(new ReadlineParser({ delimiter: '\n' }));
 
       this.port.on('open', () => {
-        this.connected = true;
-        console.log(`Serial port opened: ${portObject.path}`);
-        if (this.callback) this.callback('connected');
+        this.onConnect(portObject);
       });
 
       this.port.on('error', (err) => {
@@ -49,7 +52,8 @@ class SerialCommunication extends ICommunicationMethod {
       this.port.on('close', () => {
         this.connected = false;
         console.log('Serial port closed');
-        if (this.callback) this.callback('disconnected');
+        if (this.callback) this.callback('The arduino is disconnected');
+        this.onDisconnected()
       });
 
       this.parser.on('data', (data) => {
@@ -62,16 +66,6 @@ class SerialCommunication extends ICommunicationMethod {
         }
       });
     });
-  }
-
-  connect() {
-    if (this.port && !this.port.isOpen) {
-      this.port.open((err) => {
-        if (err) {
-          console.error('Error opening port:', err.message);
-        }
-      });
-    }
   }
 
   checkConnection() {
@@ -178,7 +172,29 @@ class SerialCommunication extends ICommunicationMethod {
 
   onDisconnected() {
     console.log('Serial connection closed');
+
+    this.reconectInterval = setInterval(() => {
+      if (!this.connected) {
+        console.log('Attempting to reconnect to serial port...');
+        this.connect();
+      } else {
+        clearInterval(this.reconectInterval);
+        this.reconectInterval = null;
+      }
+    }, 5000); // try to reconnect every 5 seconds
   }
+
+  onConnect(portObject) {
+    this.connected = true;
+    console.log(`Serial port opened: ${portObject.path}`);
+    if (this.callback) this.callback('The arduino is connected');
+    // remove interval for reconnect if any exists
+    if (this.reconnectInterval) {
+      clearInterval(this.reconnectInterval);
+      this.reconnectInterval = null;
+    }
+  }
+
 
   receive(newData) {
     // data from serial could be either an event or a response to a prior command
