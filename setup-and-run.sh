@@ -34,10 +34,23 @@ if ! grep -q "chromium-browser" "$AUTOSTART_FILE"; then
     echo "@chromium-browser --kiosk --disable-infobars --disable-restore-session-state http://localhost:5173" | sudo tee -a "$AUTOSTART_FILE"
 fi
 
+echo "Setting up autostart for kiosk mode..."
+# Add Chromium kiosk mode to autostart
+AUTOSTART_FILE="/etc/xdg/lxsession/LXDE-pi/autostart"
+if ! grep -q "chromium-browser" "$AUTOSTART_FILE"; then
+    echo "@chromium-browser --kiosk --disable-infobars --disable-restore-session-state http://localhost:5173" | sudo tee -a "$AUTOSTART_FILE"
+fi
+
 echo "Setting up backend and frontend to start on boot..."
 # Create desktop file in autostart
 AUTOSTART_DIR="/home/pi/.config/autostart"
+
+# Ensure directory exists and has proper ownership
 mkdir -p "$AUTOSTART_DIR"
+
+# Get absolute paths
+PROJECT_PATH=$(pwd)
+RUN_SCRIPT_PATH="$PROJECT_PATH/run.sh"
 
 # Create the autostart .desktop file
 cat > "$AUTOSTART_DIR/chatgpt-arduino.desktop" << EOF
@@ -45,12 +58,16 @@ cat > "$AUTOSTART_DIR/chatgpt-arduino.desktop" << EOF
 Type=Application
 Name=ChatGPT_arduinoV2
 Comment=Start ChatGPT_arduinoV2 Kiosk
-Exec=$(realpath ./run.sh)
-Path=$(realpath)
+Exec=$RUN_SCRIPT_PATH
+Path=$PROJECT_PATH
 Icon=utilities-terminal
 Terminal=false
+Categories=Application;
+X-GNOME-Autostart-enabled=true
 EOF
 
+# Set proper permissions
+chmod 755 "$AUTOSTART_DIR/chatgpt-arduino.desktop"
 
 echo "Making run.sh executable..."
 chmod +x ./run.sh
