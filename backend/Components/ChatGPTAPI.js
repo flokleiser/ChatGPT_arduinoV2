@@ -120,7 +120,6 @@ class ChatGPTAPI {
             throw new Error("Error: " + oJson.error.message);
           } else if (oJson.choices[0].finish_reason === "function_call") {
             // Handle function call
-            console.log("function_call");
             // Add function call to conversation history
             let message = oJson.choices[0].message;
             console.log("function_call with function name:", message.function_call.name);

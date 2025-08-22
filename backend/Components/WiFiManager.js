@@ -9,12 +9,18 @@ class WiFiManager {
   }
 
   /**
-   * Check if WiFi is already connected
+   * Check if WiFi is connected (not just enabled) - improved to distinguish from Ethernet
    */
   async isConnected() {
     try {
-      const { stdout } = await execAsync('nmcli -t -f WIFI g');
-      return stdout.trim() === 'enabled';
+      // Check if there's an active WiFi connection specifically
+      const { stdout } = await execAsync('nmcli -t -f TYPE,STATE connection show --active');
+      const lines = stdout.trim().split('\n');
+      const wifiConnected = lines.some(line => 
+        line.startsWith('802-11-wireless:') && line.includes(':activated')
+      );
+      
+      return wifiConnected;
     } catch (error) {
       console.error('Error checking WiFi status:', error.message);
       return false;
@@ -22,19 +28,20 @@ class WiFiManager {
   }
 
   /**
-   * Get current WiFi connection status
+   * Get current WiFi connection status - improved to exclude Ethernet
    */
   async getConnectionStatus() {
     try {
-      const { stdout } = await execAsync('nmcli -t -f NAME,STATE connection show --active');
+      // Get only WiFi connections
+      const { stdout } = await execAsync('nmcli -t -f NAME,TYPE,STATE connection show --active');
       const lines = stdout.trim().split('\n');
-      const activeConnections = lines
-        .filter(line => line.includes(':activated'))
+      const activeWiFiConnections = lines
+        .filter(line => line.includes(':802-11-wireless:activated'))
         .map(line => line.split(':')[0]);
       
       return {
-        connected: activeConnections.length > 0,
-        activeConnections: activeConnections
+        connected: activeWiFiConnections.length > 0,
+        activeConnections: activeWiFiConnections
       };
     } catch (error) {
       console.error('Error getting connection status:', error.message);
@@ -269,29 +276,75 @@ class WiFiManager {
   }
 
   /**
-   * Get current IP address and connection info
+   * Get current IP address and connection info - improved to distinguish WiFi from Ethernet
    */
   async getConnectionInfo() {
     try {
-      const { stdout } = await execAsync('ip route get 8.8.8.8');
-      const match = stdout.match(/src (\S+)/);
-      const ip = match ? match[1] : 'Unknown';
+      // Get WiFi-specific info
+      let wifiSSID = 'Not connected';
+      let wifiIP = null;
       
-      const { stdout: ssidInfo } = await execAsync('nmcli -t -f active,ssid dev wifi | grep yes');
-      const currentSSID = ssidInfo.split(':')[1] || 'Not connected';
+      try {
+        const { stdout: ssidInfo } = await execAsync('nmcli -t -f active,ssid dev wifi | grep "^yes:"');
+        wifiSSID = ssidInfo.split(':')[1] || 'Not connected';
+        
+        // Get WiFi interface IP specifically
+        const { stdout: wifiIPInfo } = await execAsync('ip addr show wlan0 | grep "inet " | awk \'{print $2}\' | cut -d/ -f1');
+        wifiIP = wifiIPInfo.trim() || null;
+      } catch (error) {
+        console.log('No active WiFi connection found');
+      }
+      
+      // Get general connection info (primary route)
+      let primaryIP = 'Unknown';
+      try {
+        const { stdout } = await execAsync('ip route get 8.8.8.8');
+        const match = stdout.match(/src (\S+)/);
+        primaryIP = match ? match[1] : 'Unknown';
+      } catch (error) {
+        console.log('Unable to determine primary IP');
+      }
+      
+      // Check if primary connection is via WiFi
+      const connectedViaWiFi = wifiIP && (wifiIP === primaryIP);
       
       return {
-        ip: ip,
-        ssid: currentSSID,
-        connected: ip !== 'Unknown'
+        ip: wifiIP || primaryIP,
+        ssid: wifiSSID,
+        connected: !!wifiIP,
+        connectedViaWiFi: connectedViaWiFi,
+        wifiIP: wifiIP,
+        primaryIP: primaryIP
       };
     } catch (error) {
       console.error('Error getting connection info:', error.message);
       return {
         ip: 'Unknown',
         ssid: 'Not connected',
-        connected: false
+        connected: false,
+        connectedViaWiFi: false,
+        wifiIP: null,
+        primaryIP: 'Unknown'
       };
+    }
+  }
+
+  /**
+   * Test WiFi connectivity specifically (not Ethernet)
+   */
+  async testWiFiConnectivity() {
+    try {
+      // First check if WiFi is connected
+      const connectionInfo = await this.getConnectionInfo();
+      if (!connectionInfo.wifiIP) {
+        return { success: false, message: 'WiFi not connected' };
+      }
+      
+      // Test internet via WiFi interface specifically
+      await execAsync('ping -c 1 -W 3 -I wlan0 8.8.8.8');
+      return { success: true, message: 'WiFi internet connectivity confirmed' };
+    } catch (error) {
+      return { success: false, message: 'WiFi has no internet connectivity' };
     }
   }
 }
