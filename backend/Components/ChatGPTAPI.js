@@ -110,9 +110,10 @@ class ChatGPTAPI {
             },
             body: JSON.stringify(data),
           });
-
+          const duration = Date.now() - timeStampMillis;
+          console.log(`✅ ChatGPT response received in ${duration}ms`);
           const oJson = await response.json();
-
+      
           // console.log(oJson.choices[0].message,);
 
           // Handle API errors

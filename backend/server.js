@@ -3,6 +3,7 @@
 import express from 'express';
 import cors from 'cors';
 import http from 'http';
+import dns from 'dns';
 import { WebSocketServer, WebSocket } from 'ws';
 import ChatGPTAPI from './Components/ChatGPTAPI.js';
 // import config json file
@@ -109,6 +110,7 @@ async function main() {
       console.log('No WiFi configuration found in config.js');
     }
 
+    testNetworkPerformance()
      // 1. Initialize communication method based on config
     console.log('📡 Initializing communication...');
     if (config.communicationMethod == "BLE") {
@@ -542,3 +544,48 @@ process.on('unhandledRejection', async (reason, promise) => {
   process.exit(1);
 });
 
+
+async function testNetworkPerformance() {
+  console.log('🔍 Testing network performance...');
+  
+  try {
+    // Test DNS resolution speed
+    const dnsStart = Date.now();
+    await dns.promises.lookup('api.openai.com');
+    const dnsTime = Date.now() - dnsStart;
+    console.log(`DNS resolution: ${dnsTime}ms`);
+    
+    // Test HTTP request speed to a fast endpoint
+    const httpStart = Date.now();
+    const response = await fetch('https://httpbin.org/ip', { 
+      signal: AbortSignal.timeout(5000), // Use AbortSignal instead of timeout
+      headers: { 'User-Agent': 'RaspberryPi-Test' }
+    });
+    await response.text();
+    const httpTime = Date.now() - httpStart;
+    console.log(`HTTP request: ${httpTime}ms`);
+    
+    // Test to OpenAI specifically (without API key)
+    const openaiStart = Date.now();
+    try {
+      await fetch('https://api.openai.com/', { 
+        signal: AbortSignal.timeout(5000),
+        headers: { 'User-Agent': 'RaspberryPi-Test' }
+      });
+    } catch (e) {
+      // Expected to fail, we just want timing
+    }
+    const openaiTime = Date.now() - openaiStart;
+    console.log(`OpenAI endpoint: ${openaiTime}ms`);
+    
+    return {
+      dns: dnsTime,
+      http: httpTime,
+      openai: openaiTime
+    };
+    
+  } catch (error) {
+    console.error('Network test failed:', error.message);
+    return null;
+  }
+}
