@@ -84,7 +84,7 @@ def extract_audio_from_chunk(audio_chunk):
 def get_supported_sample_rate(device=None):
     """Find a supported sample rate for the device"""
     # Common sample rates to try, in order of preference
-    rates_to_try = [44100, 16000, 48000, 8000, 22050]
+    rates_to_try = [22050, 16000, 44100, 48000, 8000]
     
     for rate in rates_to_try:
         try:
