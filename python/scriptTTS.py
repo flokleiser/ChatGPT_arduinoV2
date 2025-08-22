@@ -85,9 +85,12 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
     try:
         send_message("tts", "started")
         
-        # Create audio stream
+        # Force 44100 Hz which is widely supported
+        target_sample_rate = 44100
+        
+        # Create audio stream with standard sample rate
         stream = sd.OutputStream(
-            samplerate=voice.config.sample_rate, 
+            samplerate=target_sample_rate, 
             channels=1,
             dtype='int16',
             device=device
@@ -109,6 +112,21 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
         # Combine and process audio
         audio_data = b''.join(audio_chunks)
         int_data = np.frombuffer(audio_data, dtype=np.int16)
+        
+        # Simple resampling for 22050 -> 44100 (exactly 2x)
+        original_rate = voice.config.sample_rate
+        if original_rate == 22050 and target_sample_rate == 44100:
+            # Simple 2x upsampling by repeating samples
+            int_data = np.repeat(int_data, 2)
+        elif original_rate != target_sample_rate:
+            # For other rates, use basic linear interpolation
+            old_length = len(int_data)
+            new_length = int(old_length * target_sample_rate / original_rate)
+            int_data = np.interp(
+                np.linspace(0, old_length-1, new_length),
+                np.arange(old_length),
+                int_data
+            ).astype(np.int16)
         
         # Apply volume scaling
         if tts_volume != 100:
