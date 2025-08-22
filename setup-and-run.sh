@@ -3,6 +3,13 @@
 # Exit on error
 set -e
 
+# Check if we're running as pi user
+if [ "$USER" = "root" ]; then
+    echo "Please run this script as the pi user, not root:"
+    echo "Example: ./setup-and-run.sh"
+    exit 1
+fi
+
 echo "Updating system..."
 sudo apt update && sudo apt upgrade -y
 
@@ -42,18 +49,21 @@ if ! grep -q "chromium-browser" "$AUTOSTART_FILE"; then
 fi
 
 echo "Setting up backend and frontend to start on boot..."
-# Create desktop file in autostart
-AUTOSTART_DIR="/home/pi/.config/autostart"
 
-# Ensure directory exists and has proper ownership
-mkdir -p "$AUTOSTART_DIR"
+# Detect the actual user (even if running with sudo)
+ACTUAL_USER=${SUDO_USER:-$USER}
+ACTUAL_HOME=$(eval echo ~$ACTUAL_USER)
+AUTOSTART_DIR="$ACTUAL_HOME/.config/autostart"
+
+# Create directory as the actual user
+sudo -u "$ACTUAL_USER" mkdir -p "$AUTOSTART_DIR"
 
 # Get absolute paths
 PROJECT_PATH=$(pwd)
 RUN_SCRIPT_PATH="$PROJECT_PATH/run.sh"
 
-# Create the autostart .desktop file
-cat > "$AUTOSTART_DIR/chatgpt-arduino.desktop" << EOF
+# Create the autostart .desktop file as the actual user
+sudo -u "$ACTUAL_USER" tee "$AUTOSTART_DIR/chatgpt-arduino.desktop" > /dev/null << EOF
 [Desktop Entry]
 Type=Application
 Name=ChatGPT_arduinoV2
@@ -67,7 +77,7 @@ X-GNOME-Autostart-enabled=true
 EOF
 
 # Set proper permissions
-chmod 755 "$AUTOSTART_DIR/chatgpt-arduino.desktop"
+sudo -u "$ACTUAL_USER" chmod 644 "$AUTOSTART_DIR/chatgpt-arduino.desktop"
 
 echo "Making run.sh executable..."
 chmod +x ./run.sh
