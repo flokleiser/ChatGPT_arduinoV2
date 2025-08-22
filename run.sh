@@ -13,7 +13,7 @@ log() {
 # Redirect all stdout and stderr to log file while still showing on console
 exec > >(tee -a "$LOG_FILE") 2>&1
 
-log "Starting Sentient Senses application"
+log "Starting application"
 
 # Change to the directory where this script is located
 cd "$(dirname "$0")"
@@ -73,6 +73,27 @@ if lsof -ti tcp:3000 >/dev/null || lsof -ti tcp:5173 >/dev/null; then
   echo "Ports 3000 or 5173 are still in use. Exiting..."
   exit 1
 fi
+
+
+# Setup WiFi permissions only on Raspberry Pi (Linux)
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+  echo "Setting up WiFi management permissions for Raspberry Pi..."
+  
+  # Check if we need to add the sudoers rule
+  if ! sudo -n grep -q "pi ALL=(ALL) NOPASSWD: /usr/bin/nmcli" /etc/sudoers.d/nmcli-pi 2>/dev/null; then
+    echo "Adding WiFi management permissions..."
+    echo "pi ALL=(ALL) NOPASSWD: /usr/bin/nmcli" | sudo tee /etc/sudoers.d/nmcli-pi > /dev/null
+    sudo chmod 0440 /etc/sudoers.d/nmcli-pi
+    echo "WiFi permissions configured."
+  else
+    echo "WiFi permissions already configured."
+  fi
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+  echo "Running on macOS - WiFi management not required."
+else
+  echo "Unknown OS type: $OSTYPE - skipping WiFi setup."
+fi
+
 
 # Start backend/frontend servers in the background
 echo "Starting backend and frontend servers..."
