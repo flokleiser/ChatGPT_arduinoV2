@@ -4,6 +4,7 @@ import numpy as np
 import sounddevice as sd
 from piper.voice import PiperVoice
 import threading
+import queue
 import os
 from model_downloader import download_piper_voice
 
@@ -99,6 +100,9 @@ def get_supported_sample_rate(device=None):
     print("No specific sample rate worked, trying default", file=sys.stderr)
     return None
 
+import queue
+import threading
+
 def play_stream(voice, text, stop_event, pause_event, device=None):
     """Play TTS audio stream"""
     try:
@@ -108,15 +112,9 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
         target_sample_rate = get_supported_sample_rate(device)
         
         if target_sample_rate is None:
-            # Try without specifying sample rate
-            stream = sd.OutputStream(
-                channels=1,
-                dtype='int16',
-                device=device
-            )
+            stream = sd.OutputStream(channels=1, dtype='int16', device=device)
             target_sample_rate = stream.samplerate
         else:
-            # Create audio stream with supported sample rate
             stream = sd.OutputStream(
                 samplerate=target_sample_rate, 
                 channels=1,
@@ -127,58 +125,95 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
         stream.start()
         print(f"Audio stream started with {stream.samplerate}Hz", file=sys.stderr)
         
-        # Collect all audio chunks
-        audio_chunks = []
-        for audio_chunk in voice.synthesize(text):
-            chunk_data = extract_audio_from_chunk(audio_chunk)
-            if chunk_data:
-                audio_chunks.append(chunk_data)
-        
-        if not audio_chunks:
-            send_message("tts", "error: No audio data generated")
-            return
-        
-        # Combine and process audio
-        audio_data = b''.join(audio_chunks)
-        int_data = np.frombuffer(audio_data, dtype=np.int16)
-        
-        # Resample if necessary
+        # Get original sample rate for resampling
         original_rate = voice.config.sample_rate
-        actual_target_rate = stream.samplerate  # Use the actual stream sample rate
+        actual_target_rate = stream.samplerate
         
-        if original_rate != actual_target_rate:
-            print(f"Resampling from {original_rate}Hz to {actual_target_rate}Hz", file=sys.stderr)
-            
-            # Calculate resampling ratio
+        # Calculate resampling ratio
+        needs_resampling = original_rate != actual_target_rate
+        if needs_resampling:
             ratio = actual_target_rate / original_rate
-            new_length = int(len(int_data) * ratio)
-            
-            # Simple linear interpolation resampling
-            old_indices = np.arange(len(int_data))
-            new_indices = np.linspace(0, len(int_data) - 1, new_length)
-            int_data = np.interp(new_indices, old_indices, int_data).astype(np.int16)
-            
-            print(f"Resampled to {len(int_data)} samples", file=sys.stderr)
+            print(f"Will resample from {original_rate}Hz to {actual_target_rate}Hz", file=sys.stderr)
         
-        # Apply volume scaling
-        if tts_volume != 100:
-            float_data = int_data.astype(np.float32)
-            float_data = float_data * (tts_volume / 100.0)
-            int_data = np.clip(float_data, -32768, 32767).astype(np.int16)
-        
-        # Stream in chunks
-        chunk_size = 4096
-        for i in range(0, len(int_data), chunk_size):
-            if stop_event.is_set():
-                break
-            while pause_event.is_set():
-                sd.sleep(100)
+        # Try different synthesis methods
+        try:
+            # Method 1: Generator without wav_file
+            print("Trying generator synthesis...", file=sys.stderr)
+            for audio_chunk in voice.synthesize(text):
                 if stop_event.is_set():
                     break
-            
-            chunk = int_data[i:i+chunk_size]
-            if len(chunk) > 0:
-                stream.write(chunk)
+                    
+                chunk_data = extract_audio_from_chunk(audio_chunk)
+                if not chunk_data:
+                    continue
+                
+                # Process chunk immediately
+                int_data = np.frombuffer(chunk_data, dtype=np.int16)
+                
+                # Resample this chunk if needed
+                if needs_resampling and len(int_data) > 0:
+                    old_indices = np.arange(len(int_data))
+                    new_length = int(len(int_data) * ratio)
+                    if new_length > 0:
+                        new_indices = np.linspace(0, len(int_data) - 1, new_length)
+                        int_data = np.interp(new_indices, old_indices, int_data).astype(np.int16)
+                
+                # Apply volume scaling
+                if tts_volume != 100:
+                    float_data = int_data.astype(np.float32)
+                    float_data = float_data * (tts_volume / 100.0)
+                    int_data = np.clip(float_data, -32768, 32767).astype(np.int16)
+                
+                # Play this chunk immediately
+                if len(int_data) > 0:
+                    # Handle pause/resume
+                    while pause_event.is_set():
+                        sd.sleep(100)
+                        if stop_event.is_set():
+                            break
+                    
+                    if stop_event.is_set():
+                        break
+                        
+                    stream.write(int_data)
+                    
+        except TypeError as e:
+            if "missing 1 required positional argument: 'wav_file'" in str(e):
+                print("Trying generator with wav_file=None...", file=sys.stderr)
+                for audio_chunk in voice.synthesize(text, wav_file=None):
+                    # Same processing as above...
+                    if stop_event.is_set():
+                        break
+                        
+                    chunk_data = extract_audio_from_chunk(audio_chunk)
+                    if not chunk_data:
+                        continue
+                    
+                    int_data = np.frombuffer(chunk_data, dtype=np.int16)
+                    
+                    if needs_resampling and len(int_data) > 0:
+                        old_indices = np.arange(len(int_data))
+                        new_length = int(len(int_data) * ratio)
+                        if new_length > 0:
+                            new_indices = np.linspace(0, len(int_data) - 1, new_length)
+                            int_data = np.interp(new_indices, old_indices, int_data).astype(np.int16)
+                    
+                    if tts_volume != 100:
+                        float_data = int_data.astype(np.float32) * (tts_volume / 100.0)
+                        int_data = np.clip(float_data, -32768, 32767).astype(np.int16)
+                    
+                    if len(int_data) > 0:
+                        while pause_event.is_set():
+                            sd.sleep(100)
+                            if stop_event.is_set():
+                                break
+                        
+                        if stop_event.is_set():
+                            break
+                            
+                        stream.write(int_data)
+            else:
+                raise
         
         stream.stop()
         stream.close()
