@@ -7,199 +7,171 @@ import { promisify } from 'util';
 const execAsync = promisify(exec);
 
 class USBConfigWatcher extends EventEmitter {
-  constructor(options = {}) {
-    super();
-    
-    this.watchInterval = options.watchInterval || 2000;
-    this.mountPoints = options.mountPoints || ['/Volumes', '/media', '/mnt'];
-    this.configFileName = options.configFileName || 'config.js';
-    this.isWatching = false;
-    this.watchTimer = null;
-    this.currentConfigPath = null;
-    this.currentConfigHash = null;
-    
-    console.log('� USB Config Watcher initialized');
-  }
+    constructor() {
+        super();
+        this.watchTimer = null;
+        this.watchInterval = 5000; // Check every 5 seconds
+        this.lastConfigs = new Map();
+        this.isWatching = false;
+        // Detect platform and set appropriate mount points
+        const platform = process.platform;
+        const username = process.env.USER || process.env.USERNAME || 'pi';
 
-  /**
+        if (platform === 'darwin') {
+            // macOS
+            this.mountPoints = ['/Volumes'];
+        } else if (platform === 'linux') {
+            // Linux/Raspberry Pi - check multiple possible mount locations
+            this.mountPoints = [
+                `/media/${username}`,  // Standard Linux user mounts (e.g., /media/pi/)
+                '/media',              // Generic media mount point
+                '/mnt',                // Alternative mount point
+                '/run/media',          // Some Linux distributions use this
+            ];
+        } else if (platform === 'win32') {
+            // Windows - check all drive letters
+            this.mountPoints = ['A:', 'B:', 'C:', 'D:', 'E:', 'F:', 'G:', 'H:', 'I:', 'J:', 'K:', 'L:', 'M:', 'N:', 'O:', 'P:', 'Q:', 'R:', 'S:', 'T:', 'U:', 'V:', 'W:', 'X:', 'Y:', 'Z:'];
+        } else {
+            // Fallback
+            this.mountPoints = ['/media', '/mnt'];
+        }
+
+        console.log(`📱 USB mount points for ${platform}:`, this.mountPoints);
+    }
+
+    /**
+     * Scan for config.js files on USB drives
+     */
+    async scanForConfig() {
+        const configs = [];
+
+        for (const mountPoint of this.mountPoints) {
+            try {
+                if (!fs.existsSync(mountPoint)) {
+                    continue;
+                }
+
+                // Get all subdirectories in the mount point
+                const entries = fs.readdirSync(mountPoint, { withFileTypes: true });
+
+                for (const entry of entries) {
+                    if (entry.isDirectory()) {
+                        const usbPath = path.join(mountPoint, entry.name);
+                        const configPath = path.join(usbPath, 'config.js');
+
+                        // Check if config.js exists in this USB drive
+                        if (fs.existsSync(configPath)) {
+                            console.log(`📄 Found config at: ${configPath}`);
+                            this.emit('configFound', {
+                                configPath: configPath,
+                            });
+                            configs.push(configPath);
+                        }
+                    }
+                }
+            } catch (error) {
+                // Ignore permission errors or mount point access issues
+                console.debug(`Could not scan ${mountPoint}:`, error.message);
+            }
+        }
+
+        return configs;
+    }
+
+    /**
+     * Get the USB mount point from a config file path
+     */
+    getUSBMountPoint(configPath) {
+        // Find which USB base path contains this config
+        for (const basePath of this.mountPoints) {
+            if (configPath.startsWith(basePath)) {
+                // Extract the mount point (e.g., /media/pi/0085-0B871 from /media/pi/0085-0B871/config.js)
+                const relativePath = path.relative(basePath, configPath);
+                const mountDir = relativePath.split(path.sep)[0];
+                return path.join(basePath, mountDir);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get volume name for ejection (works better on Raspberry Pi)
+     */
+    getVolumeFromPath(configPath) {
+        try {
+            // For Raspberry Pi, extract the volume UUID/label from the path
+            // e.g., /media/pi/0085-0B871/config.js -> 0085-0B871
+            const mountPoint = this.getUSBMountPoint(configPath);
+            if (mountPoint) {
+                return path.basename(mountPoint);
+            }
+
+            // Fallback: check different mount point patterns
+            const mountPatterns = [
+                /\/media\/[^\/]+\/([^\/]+)/, // Linux: /media/username/volume
+                /\/mnt\/([^\/]+)/,           // Linux alternative: /mnt/volume
+                /\/Volumes\/([^\/]+)/,       // macOS: /Volumes/volume
+                /^([A-Z]:)/                  // Windows: C:
+            ];
+
+            for (const pattern of mountPatterns) {
+                const match = configPath.match(pattern);
+                if (match) {
+                    return match[1] || match[0];
+                }
+            }
+
+            return null;
+        } catch (error) {
+            console.error('Error getting volume from path:', error);
+            return null;
+        }
+    }
+
+    /**
    * Start watching for USB config changes
    */
-  start() {
-    if (this.isWatching) {
-      console.log('⚠️  USB Config Watcher is already running');
-      return;
-    }
-
-    console.log('� Starting USB config watcher...');
-    console.log(`📂 Watching mount points: ${this.mountPoints.join(', ')}`);
-    console.log(`📄 Looking for config file: ${this.configFileName}`);
-    
-    this.isWatching = true;
-    
-    // Initial scan
-    this.scanForConfig();
-    
-    // Set up periodic scanning
-    this.watchTimer = setInterval(() => {
-      this.scanForConfig();
-    }, this.watchInterval);
-    
-    console.log(`✅ USB Config Watcher started (checking every ${this.watchInterval}ms)`);
-  }
-
-  /**
-   * Stop watching for USB config changes
-   */
-  stop() {
-    if (!this.isWatching) {
-      return;
-    }
-
-    console.log('🛑 Stopping USB config watcher...');
-    
-    if (this.watchTimer) {
-      clearInterval(this.watchTimer);
-      this.watchTimer = null;
-    }
-    
-    this.isWatching = false;
-    console.log('✅ USB Config Watcher stopped');
-  }
-
-  /**
-   * Scan mount points for config files
-   */
-  scanForConfig() {
-    if (!this.isWatching) {
-      return;
-    }
-
-    let foundConfigPath = null;
-
-    // Scan each mount point
-    for (const mountPoint of this.mountPoints) {
-      try {
-        if (fs.existsSync(mountPoint)) {
-          const entries = fs.readdirSync(mountPoint);
-          
-          for (const entry of entries) {
-            const entryPath = path.join(mountPoint, entry);
-            
-            try {
-              const stats = fs.statSync(entryPath);
-              if (stats.isDirectory()) {
-                const configPath = path.join(entryPath, this.configFileName);
-                
-                if (fs.existsSync(configPath)) {
-                  console.log(`🔍 Found config file: ${configPath}`);
-                  foundConfigPath = configPath;
-                  break;
-                }
-              }
-            } catch (error) {
-              // Skip entries we can't access
-              continue;
-            }
-          }
+    start() {
+        if (this.isWatching) {
+            console.log('⚠️  USB Config Watcher is already running');
+            return;
         }
-      } catch (error) {
-        // Skip mount points we can't access
-        continue;
-      }
-      
-      if (foundConfigPath) {
-        break;
-      }
+
+        console.log('� Starting USB config watcher...');
+        console.log(`📂 Watching mount points: ${this.mountPoints.join(', ')}`);
+
+        this.isWatching = true;
+
+        // Initial scan
+        this.scanForConfig();
+
+        // Set up periodic scanning
+        this.watchTimer = setInterval(() => {
+            console.log('🔍 Scanning for USB config files...');
+            this.scanForConfig();
+        }, this.watchInterval);
+
+        console.log(`✅ USB Config Watcher started (checking every ${this.watchInterval}ms)`);
     }
 
-    // Check if config has changed
-    if (this.hasConfigFileChanged(foundConfigPath)) {
-      this.handleConfigChange(foundConfigPath);
-    }
-  }
-
-  /**
-   * Check if config file has changed
-   */
-  hasConfigFileChanged(configPath) {
-    // New config found
-    if (configPath && !this.currentConfigPath) {
-      return true;
-    }
-    
-    // Config removed
-    if (!configPath && this.currentConfigPath) {
-      return true;
-    }
-    
-    // Config path changed
-    if (configPath && this.currentConfigPath && configPath !== this.currentConfigPath) {
-      return true;
-    }
-    
-    // Check content hash if same path
-    if (configPath && this.currentConfigPath === configPath) {
-      try {
-        const content = fs.readFileSync(configPath, 'utf8');
-        const newHash = this.generateHash(content);
-        return newHash !== this.currentConfigHash;
-      } catch (error) {
-        return false;
-      }
-    }
-    
-    return false;
-  }
-
-  /**
-   * Handle config file change
-   */
-  async handleConfigChange(newConfigPath) {
-    if (newConfigPath && newConfigPath !== this.currentConfigPath) {
-      console.log(`🔄 New USB config detected: ${newConfigPath}`);
-      console.log(`📋 Loading configuration from USB...`);
-      
-      const previousPath = this.currentConfigPath;
-      this.currentConfigPath = newConfigPath;
-      
-      // Update hash
-      if (newConfigPath) {
-        try {
-          const content = fs.readFileSync(newConfigPath, 'utf8');
-          this.currentConfigHash = this.generateHash(content);
-          console.log(`✅ USB config loaded successfully`);
-            this.emit('configChanged', {
-            configPath: this.currentConfigPath,
-            previousPath: previousPath
-          });
-        } catch (error) {
-          console.error('❌ Error reading new USB config:', error.message);
-          return;
+    /**
+     * Eject USB volume (Raspberry Pi compatible)
+     */
+    stop() {
+        if (!this.isWatching) {
+            return;
         }
-      }
-      
+        if (this.watchTimer) {
+            clearInterval(this.watchTimer);
+            this.watchTimer = null;
+        }
 
-    } else if (!newConfigPath && this.currentConfigPath) {
-      console.log('📤 USB config removed');
-      this.currentConfigPath = null;
-      this.currentConfigHash = null;
-      this.emit('configRemoved');
+        this.isWatching = false;
+        console.log('✅ USB Config Watcher stopped');
     }
-  }
 
-  async eject() {
-  // Auto-eject the USB drive first, then emit config change
-      console.log(`💾 Auto-ejecting USB drive before restart...`);
-      setTimeout(async () => {
-        await this.ejectUSBDrive(this.currentConfigPath);
-      }, 1000); // Brief delay to ensure file reading is complete
 
-  }
-
-  /**
-   * Eject the USB drive containing the config file
-   */
-  async ejectUSBDrive(configPath) {
+    async ejectUSBDrive(configPath) {
     try {
       const usbMountPoint = this.getUSBMountPoint(configPath);
       if (!usbMountPoint) {
@@ -240,42 +212,12 @@ class USBConfigWatcher extends EventEmitter {
       this.emit('usbEjectionFailed', { error: error.message, configPath });
     }
   }
-
-  /**
-   * Get the USB mount point from a config file path
-   */
-    getUSBMountPoint(configPath) {
-    // Find which USB base path contains this config
-    for (const basePath of this.mountPoints) {
-        if (configPath.startsWith(basePath)) {
-        // Extract the mount point (e.g., /Volumes/USB_DRIVE from /Volumes/USB_DRIVE/config.js)
-        const relativePath = path.relative(basePath, configPath);
-        const mountDir = relativePath.split(path.sep)[0];
-        return path.join(basePath, mountDir);
-        }
-    }
-    return null;
+    /**
+     * Check if the watcher is currently active
+     */
+    isWatching() {
+        return this.watchTimer !== null;
     }
 
-  /**
-   * Generate a simple hash for content comparison
-   */
-  generateHash(content) {
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    return hash.toString();
-  }
-
-  /**
-   * Get current USB config path if any
-   */
-  getCurrentConfigPath() {
-    return this.currentConfigPath;
-  }
 }
-
-export default USBConfigWatcher;
+export { USBConfigWatcher };

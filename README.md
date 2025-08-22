@@ -224,3 +224,7 @@ The application supports **automatic configuration loading from USB drives** wit
 - Improve security (SSH only over ethernet)
 - Add more stable handling of serial errors and disconnections
 - BLE integration 
+- deal with depreciation warning: [0] Python: /Users/lfranzke/Documents/ZHdK/11_Physical Computing Lab/Technology/ChatGPT_arduinoV2/python/venv/lib/python3.13/site-packages/webrtcvad.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+[0]   import pkg_resources
+[0] 
+[0] Python: Warning: 64ms frames not supported by WebRTC VAD. Using 30ms instead.

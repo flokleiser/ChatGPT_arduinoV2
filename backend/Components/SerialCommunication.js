@@ -16,7 +16,7 @@ class SerialCommunication extends ICommunicationMethod {
         (port) => port.manufacturer && port.manufacturer.includes('Arduino')
       );
       if (!portObject) {
-        console.error('No Arduino device found.');
+        console.error('⚠️ ⚠️ No Arduino device found.');
         return;
       }
       this.port = new SerialPort({
