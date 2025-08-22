@@ -55,6 +55,7 @@ class ChatGPTAPI {
    * Optionally, handle function calls.
    */
   async send(sQuestion, role, funtionName) {
+    let timeStampMillis = Date.now();
     console.log("send to llm:" + role + " " + sQuestion + " function:" + funtionName)
     return new Promise((resolve, reject) => {
       (async () => {
@@ -150,6 +151,8 @@ class ChatGPTAPI {
 
           } else {
             console.log("normal response");
+            let currentTimeMillis = Date.now();
+            console.log("response time (ms):", currentTimeMillis - timeStampMillis);
             // Handle normal response
             let sMessage = "";
             if (oJson.choices[0].text) {
