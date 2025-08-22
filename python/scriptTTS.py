@@ -80,23 +80,52 @@ def extract_audio_from_chunk(audio_chunk):
     
     return None
 
+def get_supported_sample_rate(device=None):
+    """Find a supported sample rate for the device"""
+    # Common sample rates to try, in order of preference
+    rates_to_try = [48000, 44100, 16000, 8000, 22050]
+    
+    for rate in rates_to_try:
+        try:
+            # Test if this rate works
+            sd.check_output_settings(device=device, samplerate=rate, channels=1, dtype='int16')
+            print(f"Using sample rate: {rate}Hz", file=sys.stderr)
+            return rate
+        except Exception as e:
+            print(f"Sample rate {rate}Hz not supported: {e}", file=sys.stderr)
+            continue
+    
+    # If nothing works, try the default
+    print("No specific sample rate worked, trying default", file=sys.stderr)
+    return None
+
 def play_stream(voice, text, stop_event, pause_event, device=None):
     """Play TTS audio stream"""
     try:
         send_message("tts", "started")
         
-        # Force 44100 Hz which is widely supported
-        target_sample_rate = 44100
+        # Find a supported sample rate
+        target_sample_rate = get_supported_sample_rate(device)
         
-        # Create audio stream with standard sample rate
-        stream = sd.OutputStream(
-            samplerate=target_sample_rate, 
-            channels=1,
-            dtype='int16',
-            device=device
-        )
+        if target_sample_rate is None:
+            # Try without specifying sample rate
+            stream = sd.OutputStream(
+                channels=1,
+                dtype='int16',
+                device=device
+            )
+            target_sample_rate = stream.samplerate
+        else:
+            # Create audio stream with supported sample rate
+            stream = sd.OutputStream(
+                samplerate=target_sample_rate, 
+                channels=1,
+                dtype='int16',
+                device=device
+            )
         
         stream.start()
+        print(f"Audio stream started with {stream.samplerate}Hz", file=sys.stderr)
         
         # Collect all audio chunks
         audio_chunks = []
@@ -113,20 +142,23 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
         audio_data = b''.join(audio_chunks)
         int_data = np.frombuffer(audio_data, dtype=np.int16)
         
-        # Simple resampling for 22050 -> 44100 (exactly 2x)
+        # Resample if necessary
         original_rate = voice.config.sample_rate
-        if original_rate == 22050 and target_sample_rate == 44100:
-            # Simple 2x upsampling by repeating samples
-            int_data = np.repeat(int_data, 2)
-        elif original_rate != target_sample_rate:
-            # For other rates, use basic linear interpolation
-            old_length = len(int_data)
-            new_length = int(old_length * target_sample_rate / original_rate)
-            int_data = np.interp(
-                np.linspace(0, old_length-1, new_length),
-                np.arange(old_length),
-                int_data
-            ).astype(np.int16)
+        actual_target_rate = stream.samplerate  # Use the actual stream sample rate
+        
+        if original_rate != actual_target_rate:
+            print(f"Resampling from {original_rate}Hz to {actual_target_rate}Hz", file=sys.stderr)
+            
+            # Calculate resampling ratio
+            ratio = actual_target_rate / original_rate
+            new_length = int(len(int_data) * ratio)
+            
+            # Simple linear interpolation resampling
+            old_indices = np.arange(len(int_data))
+            new_indices = np.linspace(0, len(int_data) - 1, new_length)
+            int_data = np.interp(new_indices, old_indices, int_data).astype(np.int16)
+            
+            print(f"Resampled to {len(int_data)} samples", file=sys.stderr)
         
         # Apply volume scaling
         if tts_volume != 100:
