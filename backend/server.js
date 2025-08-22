@@ -126,6 +126,8 @@ async function main() {
     const functionHandler = new FunctionHandler(config, currentInstances.communicationMethod);
 
     // Setup LLM API
+    console.log("model config:", config.chatGPTSettings.model);
+    
     let LLM_API = new ChatGPTAPI(config, functionHandler);
 
 
