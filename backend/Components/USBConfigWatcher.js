@@ -147,7 +147,7 @@ class USBConfigWatcher extends EventEmitter {
 
         // Set up periodic scanning
         this.watchTimer = setInterval(() => {
-            console.log('🔍 Scanning for USB config files...');
+            //console.log('🔍 Scanning for USB config files...');
             this.scanForConfig();
         }, this.watchInterval);
 

@@ -15,7 +15,6 @@ import FunctionHandler from './Components/FunctionHandler.js';
 //import BLECommunication from './Components/BLECommunication.js';
 import SpeechToText from './Components/SpeechToText.js';
 import TextToSpeech from './Components/TextToSpeech.js';
-import { captureAndSendImage } from "./Components/camera.js";
 import WiFiManager from './Components/WiFiManager.js';
 //import USBConfigWatcher from './Components/USBConfigWatcher.js';
 
@@ -111,7 +110,7 @@ async function main() {
     }
 
     testNetworkPerformance()
-     // 1. Initialize communication method based on config
+    // 1. Initialize communication method based on config
     console.log('📡 Initializing communication...');
     if (config.communicationMethod == "BLE") {
       console.log("BLE communication not yet implemented");
@@ -129,7 +128,7 @@ async function main() {
 
     // Setup LLM API
     console.log("model config:", config.chatGPTSettings.model);
-    
+
     let LLM_API = new ChatGPTAPI(config, functionHandler);
 
 
@@ -167,7 +166,7 @@ async function main() {
       }
     }
 
-   
+
     // 2. Initialize speech to text
     console.log('🎤 Initializing speech to text...');
     currentInstances.speechToText = new SpeechToText(callBackSpeechToText);
@@ -190,6 +189,7 @@ async function main() {
         .filter(msg => msg.role === "assistant")
         .pop();
 
+      // 
       if (lastAssistantMessage) {
         const initialState = {
           backEnd: {
@@ -283,6 +283,19 @@ async function main() {
 
     // 5. Setup helper functions
     function broadcastUpdate(data) {
+      // avoid sending image data around
+      try {
+        const dataObj = JSON.parse(data);
+        if (dataObj.backEnd && dataObj.backEnd.message &&
+          typeof dataObj.backEnd.message === 'string' &&
+          dataObj.backEnd.message.startsWith('{"Camera Image":')) {
+          dataObj.backEnd.message = "image";
+          data = JSON.stringify(dataObj);
+        }
+      } catch (e) {
+        // If JSON parsing fails, use original data
+      }
+
       currentInstances.wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(data);
@@ -297,7 +310,7 @@ async function main() {
       if (typeof messageType !== 'undefined') dataObj.backEnd.messageType = messageType;
       if (typeof complete !== 'undefined') dataObj.backEnd.complete = complete;
       const data = JSON.stringify(dataObj);
-      console.log(data);
+      //console.log(data);
       broadcastUpdate(data);
     }
 
@@ -322,7 +335,7 @@ async function main() {
     function LLMresponseHandler(returnObject) {
 
       // TODO: add error handling
-      console.log(returnObject);
+     // console.log(returnObject);
       if (returnObject.role == "assistant") {
         // convert the returnObject.message to string to avoid the class having access to the returnObject
         let message = returnObject.message.toString();
@@ -340,7 +353,6 @@ async function main() {
         const args = returnObject.arguments;
         frontEndFunction(functionName, args);
         updateFrontend(functionName, "system");
-
       } else if (returnObject.role == "functionReturnValue") {
         // pass message to LLM API
         LLM_API.send(returnObject.value, "system").then((response) => {
@@ -401,12 +413,12 @@ async function cleanup(restart = false) {
 
   try {
     // Stop USB watcher
-      if (currentInstances.usbWatcher) {
+    if (currentInstances.usbWatcher) {
       console.log('🛑 Stopping USB config watcher...');
-      
+
       // Remove all event listeners to prevent scope issues
       currentInstances.usbWatcher.removeAllListeners();
-      
+
       // Stop the watcher
       currentInstances.usbWatcher.stop();
       currentInstances.usbWatcher = null;
@@ -442,7 +454,7 @@ async function cleanup(restart = false) {
       currentInstances.wss = null;
     }
 
-      // Close HTTP server with better error handling
+    // Close HTTP server with better error handling
     if (currentInstances.server) {
       console.log('🛑 Closing HTTP server...');
 
@@ -547,29 +559,29 @@ process.on('unhandledRejection', async (reason, promise) => {
 
 async function testNetworkPerformance() {
   console.log('🔍 Testing network performance...');
-  
+
   try {
     // Test DNS resolution speed
     const dnsStart = Date.now();
     await dns.promises.lookup('api.openai.com');
     const dnsTime = Date.now() - dnsStart;
     console.log(`DNS resolution: ${dnsTime}ms`);
-    
+
     // Test HTTP request speed to a fast endpoint
     const httpStart = Date.now();
-    const response = await fetch('https://httpbin.org/ip', { 
+    const response = await fetch('https://httpbin.org/ip', {
       signal: AbortSignal.timeout(5000), // Use AbortSignal instead of timeout
       headers: { 'User-Agent': 'RaspberryPi-Test' }
     });
     await response.text();
     const httpTime = Date.now() - httpStart;
     console.log(`HTTP request: ${httpTime}ms`);
-    
+
     // Test to OpenAI specifically (without API key)
     const openaiStart = Date.now();
     try {
-      await fetch('https://api.openai.com/', { 
-        signal: AbortSignal.timeout(5000),
+      await fetch('https://api.openai.com/', {
+        signal: AbortSignal.timeout(10000),
         headers: { 'User-Agent': 'RaspberryPi-Test' }
       });
     } catch (e) {
@@ -577,13 +589,13 @@ async function testNetworkPerformance() {
     }
     const openaiTime = Date.now() - openaiStart;
     console.log(`OpenAI endpoint: ${openaiTime}ms`);
-    
+
     return {
       dns: dnsTime,
       http: httpTime,
       openai: openaiTime
     };
-    
+
   } catch (error) {
     console.error('Network test failed:', error.message);
     return null;
