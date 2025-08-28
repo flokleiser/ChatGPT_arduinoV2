@@ -175,10 +175,7 @@ Add the .desktop file to /.config/autostart/ with the following content:
 - Auto.restart when config changed or Arduino disconnected
 - Compete image integration 
 - Separate speaker audio device python script
-- Allow choice of vosk and piper models vie config file
+- Allow choice of vosk and piper models via config file
 - Allow wifi specifications via config file 
-- add shutdown button 
 - improve security (shh only over ethernet)
-- add more stable handling of serial errors and disconnections
 - BLE integration 
-- add wifi details to config file.

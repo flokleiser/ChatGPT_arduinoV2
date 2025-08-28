@@ -40,7 +40,7 @@ class FunctionHandler {
       },
       {
         name: "checkCamera",
-        description: "Describe the scene as if you were seeing it with your eye. Only describe the people in it",
+        description: "Describe the scene as if you were seeing it with your eye. Use this function if your unsure what is happening or if asked what you see.",
         parameters: {
           type: "object",
           properties: {

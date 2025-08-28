@@ -55,31 +55,86 @@ class ChatGPTAPI {
    * Optionally, handle function calls.
    */
 
-  send(input, role, functionName = null) {
-    // check if input in text or image
-    if (typeof input === 'string' && input.startsWith('{"Camera Image":')) {
-      console.log("📸 detected camera image data, parsing...");
-      try {
-        const parsedInput = JSON.parse(input);
-        const imageData = parsedInput["Camera Image"];
-        return this.sendImage(imageData, role);
-      } catch (e) {
-        console.error("Error parsing camera image data:", e);
-        // Fall back to text handling
-        return this.sendText(input, role, functionName);
-      }
-    } else {
-      console.log("💬 sending text to chatGPT");
-      return this.sendText(input, role, functionName);
-    }
-  }
-
-
-  async sendText(sQuestion, role, functionName) {
+  async send(sQuestion, role, functionName) {
     let timeStampMillis = Date.now();
     console.log("send to llm:" + role + " " + sQuestion + " function:" + functionName)
+    
+    // Check if input is camera image data
+    let isImageData = false;
+    let imageData = null;
+    
+    if (typeof sQuestion === 'string' && sQuestion.startsWith('{"Camera Image":')) {
+      console.log("📸 detected camera image data, parsing...");
+      try {
+        const parsedInput = JSON.parse(sQuestion);
+        imageData = parsedInput["Camera Image"];
+        isImageData = true;
+        console.log("📸 sending image to chatGPT");
+      } catch (e) {
+        console.error("Error parsing camera image data:", e);
+        isImageData = false;
+      }
+    }
+    
     return new Promise((resolve, reject) => {
       (async () => {
+        let messages;
+        
+        if (isImageData && imageData) {
+          // Handle image data
+          let base64Data;
+          if (imageData.startsWith('data:image/')) {
+            base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
+          } else {
+            base64Data = imageData;
+          }
+          
+          // Validate base64 data
+          if (!base64Data || base64Data.length < 100) {
+            console.error("Base64 data too short or empty:", base64Data.length);
+            resolve({ message: "Error: Invalid or empty image data", role: "error" });
+            return;
+          }
+          
+          messages = [...this.config.conversationProtocol, {
+            role: role,
+            content: [
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:image/jpeg;base64,${base64Data}`,
+                },
+              },
+            ],
+          }];
+        } else {
+          // Handle text data
+          messages = [...this.config.conversationProtocol];
+          
+          // Add message to conversation protocol for text only
+          if (functionName) {
+            messages.push({
+              role: role,
+              name: functionName,
+              content: sQuestion,
+            });
+            this.config.conversationProtocol.push({
+              role: role,
+              name: functionName,
+              content: sQuestion,
+            });
+          } else {
+            messages.push({
+              role: role,
+              content: sQuestion,
+            });
+            this.config.conversationProtocol.push({
+              role: role,
+              content: sQuestion,
+            });
+          }
+        }
+
         // Prepare API request data
         let data = {
           model: this.Model,
@@ -89,22 +144,12 @@ class ChatGPTAPI {
           frequency_penalty: this.config.chatGPTSettings.frequency_penalty,
           presence_penalty: this.config.chatGPTSettings.presence_penalty,
           stop: ["#", ";"],
-          functions: this.functionHandler.getAllFunctions(),
-          messages: this.config.conversationProtocol,
+          messages: messages,
         };
-
-        // Add message to conversation protocol
-        if (functionName) {
-          this.config.conversationProtocol.push({
-            role: role,
-            name: functionName,
-            content: sQuestion,
-          });
-        } else {
-          this.config.conversationProtocol.push({
-            role: role,
-            content: sQuestion,
-          });
+        
+        // Only add functions for text requests, not image requests
+        if (!isImageData) {
+          data.functions = this.functionHandler.getAllFunctions();
         }
 
         // Prepare return object
@@ -118,7 +163,7 @@ class ChatGPTAPI {
           console.log("message content is empty!");
           return resolve(returnObject);
         }
-        // console.log(`role: ${role} is sending message: ${sQuestion}`);
+        
         console.log("Send request to OpenAI API")
         try {
           // Send request to OpenAI API
@@ -141,9 +186,8 @@ class ChatGPTAPI {
           if (oJson.error && oJson.error.message) {
             console.log("Error from OpenAI API:", oJson.error.message);
             throw new Error("Error: " + oJson.error.message);
-          } else if (oJson.choices[0].finish_reason === "function_call") {
-            // Handle function call
-            // Add function call to conversation history
+          } else if (oJson.choices[0].finish_reason === "function_call" && !isImageData) {
+            // Handle function call (only for text requests, not image requests)
             let message = oJson.choices[0].message;
             // Await the function call handler and resolve with its result
             let result = await this.functionHandler.handleCall(
@@ -157,13 +201,11 @@ class ChatGPTAPI {
               console.log("result from function call:", result);
             }
 
-
             this.config.conversationProtocol.push({
               role: "function",
               name: message.function_call.name,
               content: message.function_call.arguments
             });
-            // console.log(result);
 
             // if the function call has a return value, pass it back to the LLM, otherwise just resolve the result
             if (result.description == 'response') {
@@ -174,7 +216,7 @@ class ChatGPTAPI {
             }
 
           } else {
-            console.log("normal response");
+            console.log(isImageData ? "image response" : "normal response");
             let currentTimeMillis = Date.now();
             console.log("response time (ms):", currentTimeMillis - timeStampMillis);
             // Handle normal response
@@ -192,6 +234,7 @@ class ChatGPTAPI {
             }
 
             returnObject.message = sMessage;
+            // Always add the assistant's response to conversation protocol
             this.config.conversationProtocol.push({
               role: "assistant",
               content: sMessage,
@@ -206,104 +249,6 @@ class ChatGPTAPI {
         }
       })();
     });
-  }
-
-
-  /**
- * Send an image to OpenAI API and handle the response.
- * @param {string} image - base64-encoded image string (e.g., "data:image/png;base64,...")
- * @param {string} role - role for the message, usually "user"
- * @returns {Promise<{message: string, role: string}>}
- */
-  async sendImage(image, role = "user") {
-    console.log("sendImage called with:", typeof image, image.substring(0, 50) + "...");
-    
-    // Handle different input formats
-    let base64Data;
-
-    if (typeof image === 'string') {
-      if (image.startsWith('data:image/')) {
-        // Already formatted data URL - extract base64 part
-        base64Data = image.replace(/^data:image\/\w+;base64,/, "");
-      } else {
-        // Assume it's raw base64
-        base64Data = image;
-      }
-    } else {
-      console.error("Invalid image format:", typeof image);
-      return { message: "Error: Invalid image format", role: "error" };
-    }
-
-    // Validate base64 data
-    if (!base64Data || base64Data.length < 100) {
-      console.error("Base64 data too short or empty:", base64Data.length);
-      return { message: "Error: Invalid or empty image data", role: "error" };
-    }
-
-    const messages = [
-      
-      {
-        role: "system",
-        content: "the image from your vision",
-      },
-      
-      {
-        role: role,
-        content: [
-          {
-            type: "image_url",
-            image_url: {
-              url: `data:image/jpeg;base64,${base64Data}`,
-            },
-          },
-        ],
-      },
-    ];
-
-    const data = {
-      model: this.Model, // Should be "gpt-4o" or "gpt-4-vision-preview"
-      messages: messages,
-      max_tokens: this.MaxTokens || 1024,
-      user: this.UserId,
-    };
-
-    try {
-      const response = await fetch(this.Url, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify(data),
-      });
-
-      const oJson = await response.json();
-
-      if (oJson.error && oJson.error.message) {
-        console.log("Error from OpenAI API:", oJson.error.message);
-        throw new Error("Error: " + oJson.error.message);
-      }
-
-      let sMessage = "";
-      if (oJson.choices && oJson.choices[0].message) {
-        sMessage = oJson.choices[0].message.content;
-      }
-
-      if (!sMessage) {
-        sMessage = "No response";
-      }
-
-      // Optionally, add to conversation history
-      this.config.conversationProtocol.push({
-        role: "assistant",
-        content: sMessage,
-      });
-
-      return { message: sMessage, role: "assistant" };
-    } catch (e) {
-      return { message: `Error fetching ${this.Url}: ${e.message}`, role: "error" };
-    }
   }
 }
 
