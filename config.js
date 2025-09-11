@@ -43,13 +43,13 @@ const config = {
         commType: "write",
         dataType: "number",
         description: "0 is off , 1 is on",
-      },/*
+      },
         get_String: {
         //uuid: "19b10004-e8f2-537e-4f6c-d104768a1214", // Only needed for BLE, must be lowercase
         commType: "read",
         dataType: "string",
         description: "Get the stored sting from the device",
-      },*/
+      },
       set_motor_speed: {
         //uuid: "19b10001-e8f2-537e-4f6c-d104768a1214", // Only needed for BLE, must be lowercase
         commType: "write",

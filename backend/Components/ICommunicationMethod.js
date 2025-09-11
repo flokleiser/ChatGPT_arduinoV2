@@ -1,6 +1,7 @@
 class ICommunicationMethod {
-    constructor(callback) {
+    constructor(callback, config) {
         this.callback = callback;
+        this.config = config;
         this.connected = false;
     }
     connect() {

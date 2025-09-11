@@ -1,8 +1,8 @@
 #  ChatGPT_arduinoV2 
 
-This project makes it easy to connect physical devies to a large language model, for prototyping so called "Large Language Objects". The project is essentially a voice assistant optimised for running on a raspberry pi with an attached arduino. The code has been tested on Linux and Mac OS, and is optimised for Raspbery PI. 
+This project makes it easy to connect physical devices to a large language model, for prototyping so called "Large Language Objects". The project is essentially a voice assistant optimised for running on a raspberry pi with an attached Arduino. The code has been tested on Linux and Mac OS, and is optimised for Raspbery PI. 
 
-After following the installation instructions, create an .env file with the openAI api key in the following format, or add it to the config.js file in an external usb stick. 
+After following the installation instructions, create an .env file with the openAI api key in the following format, or add it to the config.js file on an external usb stick. 
 
  ```bash
 OPENAI_API_KEY='******************************' 
@@ -45,7 +45,7 @@ git clone https://github.com/IAD-ZHDK/ChatGPT_arduinoV2.git
 cd ChatGPT_arduinoV2
 ```   
 
-### **Get lattest version after installing**
+### **Get latest version after installing**
 
 Navigate to the path of the project and run this line
 ```bash
@@ -54,7 +54,7 @@ git pull
 
 ## Quick start
 
-You can attemp to do the setup with the shell sript setup-and-run. If this fails, then attempt the manuel process 
+You can attempt to do the setup with the shell script setup-and-run. If this fails, then attempt the manuel process 
 
 ```bash
 chmod +x setup-and-run.sh
@@ -99,7 +99,7 @@ pip3 install onnxruntime pyaudio webrtcvad
 ```bash
 nano .env
 ```
-and 
+and replace the API Key with your own. 
  ```bash
 OPENAI_API_KEY='******************************' 
   ```
@@ -121,7 +121,7 @@ or for development:
   npm run dev
 ```
 
-- The backend will run on port 3000, and the frontend (Vite dev server) on port 5173.
+- The backend will run on port 3000, and the frontend on port 5173.
 
 ### 6. **Set Up Kiosk Mode and autostart**
 
@@ -172,10 +172,7 @@ Add the .desktop file to /.config/autostart/ with the following content:
 ```
 ###  Todo
 
-- Auto.restart when config changed or Arduino disconnected
-- Compete image integration 
-- Separate speaker audio device python script
-- Allow choice of vosk and piper models via config file
-- Allow wifi specifications via config file 
+- Auto.restart when Arduino disconnected 
+- Allow choice of vosk models via config file
 - improve security (shh only over ethernet)
 - BLE integration 

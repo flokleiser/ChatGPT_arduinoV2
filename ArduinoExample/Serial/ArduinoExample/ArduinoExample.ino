@@ -18,7 +18,7 @@ float motorPosition = 0.0;
 int motorSpeed = 0;
 int imuValue = 5;
 unsigned long previousMillisShake = 0;  // This is used to keep track of notify frequencies
-String storedString = "bas";
+String storedString = "a robot may not injure a human being or, through inaction, allow one to come to harm";
 
 void setup() {
   Serial.begin(115200); // don't change the baud rate!

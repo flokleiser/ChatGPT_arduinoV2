@@ -7,7 +7,6 @@ import dns from 'dns';
 import { WebSocketServer, WebSocket } from 'ws';
 import ChatGPTAPI from './Components/ChatGPTAPI.js';
 // import config json file
-//import { loadConfig, loadUsbConfig } from './Components/configHandler.js';
 import { loadConfig, loadFromUSB, getUSBDetector } from './Components/configHandler.js';
 import SerialCommunication from './Components/SerialCommunication.js';
 import ICommunicationMethod from './Components/ICommunicationMethod.js';
@@ -57,6 +56,7 @@ async function main() {
     config = await loadConfig(existingConfig);
     console.log('✅ Configuration loaded');
     // 0.1. Initialize USB Config Watcher
+    /*
     currentInstances.usbWatcher = getUSBDetector();
     // Start watching for USB config changes
 
@@ -74,10 +74,10 @@ async function main() {
         //attempt to eject the USB drive
         let configPath = event.configPath
         console.log('⚠️  configPath:', configPath);
-        currentInstances.usbWatcher.ejectUSBDrive(configPath);
+        //  currentInstances.usbWatcher.ejectUSBDrive(configPath);
       }
     });
-
+*/
 
 
     //currentInstances.usbWatcher.eject()
@@ -114,11 +114,11 @@ async function main() {
     console.log('📡 Initializing communication...');
     if (config.communicationMethod == "BLE") {
       console.log("BLE communication not yet implemented");
-      currentInstances.communicationMethod = new ICommunicationMethod(comCallback);
+      currentInstances.communicationMethod = new ICommunicationMethod(comCallback, config);
     } else if (config.communicationMethod == "Serial") {
-      currentInstances.communicationMethod = new SerialCommunication(comCallback);
+      currentInstances.communicationMethod = new SerialCommunication(comCallback, config);
     } else {
-      currentInstances.communicationMethod = new ICommunicationMethod(comCallback);
+      currentInstances.communicationMethod = new ICommunicationMethod(comCallback, config);
     }
 
 
@@ -283,6 +283,12 @@ async function main() {
 
     // 5. Setup helper functions
     function broadcastUpdate(data) {
+      // Check if WebSocket server exists and is available
+      if (!currentInstances.wss || !currentInstances.wss.clients) {
+        console.warn('WebSocket server not available, skipping broadcast');
+        return;
+      }
+
       // avoid sending image data around
       try {
         const dataObj = JSON.parse(data);
@@ -304,6 +310,12 @@ async function main() {
     }
 
     function updateFrontend(message, messageType, complete) {
+      // Check if WebSocket server is available before broadcasting
+      if (!currentInstances.wss || !currentInstances.wss.clients) {
+        console.warn('WebSocket server not available, skipping frontend update');
+        return;
+      }
+
       const dataObj = {};
       dataObj.backEnd = {};
       if (typeof message !== 'undefined') dataObj.backEnd.message = message;
@@ -335,7 +347,7 @@ async function main() {
     function LLMresponseHandler(returnObject) {
 
       // TODO: add error handling
-     // console.log(returnObject);
+      // console.log(returnObject);
       if (returnObject.role == "assistant") {
         // convert the returnObject.message to string to avoid the class having access to the returnObject
         let message = returnObject.message.toString();

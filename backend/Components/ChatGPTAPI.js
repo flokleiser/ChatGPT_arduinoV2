@@ -57,12 +57,11 @@ class ChatGPTAPI {
 
   async send(sQuestion, role, functionName) {
     let timeStampMillis = Date.now();
-    console.log("send to llm:" + role + " " + sQuestion + " function:" + functionName)
-    
+
     // Check if input is camera image data
     let isImageData = false;
     let imageData = null;
-    
+
     if (typeof sQuestion === 'string' && sQuestion.startsWith('{"Camera Image":')) {
       console.log("📸 detected camera image data, parsing...");
       try {
@@ -74,12 +73,16 @@ class ChatGPTAPI {
         console.error("Error parsing camera image data:", e);
         isImageData = false;
       }
+    } else {
+
+      console.log("send to llm:" + role + " " + sQuestion + " function:" + functionName)
+
     }
-    
+
     return new Promise((resolve, reject) => {
       (async () => {
         let messages;
-        
+
         if (isImageData && imageData) {
           // Handle image data
           let base64Data;
@@ -88,14 +91,14 @@ class ChatGPTAPI {
           } else {
             base64Data = imageData;
           }
-          
+
           // Validate base64 data
           if (!base64Data || base64Data.length < 100) {
             console.error("Base64 data too short or empty:", base64Data.length);
             resolve({ message: "Error: Invalid or empty image data", role: "error" });
             return;
           }
-          
+
           messages = [...this.config.conversationProtocol, {
             role: role,
             content: [
@@ -110,7 +113,7 @@ class ChatGPTAPI {
         } else {
           // Handle text data
           messages = [...this.config.conversationProtocol];
-          
+
           // Add message to conversation protocol for text only
           if (functionName) {
             messages.push({
@@ -146,7 +149,7 @@ class ChatGPTAPI {
           stop: ["#", ";"],
           messages: messages,
         };
-        
+
         // Only add functions for text requests, not image requests
         if (!isImageData) {
           data.functions = this.functionHandler.getAllFunctions();
@@ -163,7 +166,7 @@ class ChatGPTAPI {
           console.log("message content is empty!");
           return resolve(returnObject);
         }
-        
+
         console.log("Send request to OpenAI API")
         try {
           // Send request to OpenAI API

@@ -2,8 +2,8 @@ import ICommunicationMethod from './ICommunicationMethod.js';
 import { SerialPort, ReadlineParser } from 'serialport';
 
 class SerialCommunication extends ICommunicationMethod {
-  constructor(callback) {
-    super(callback);
+  constructor(callback, config) {
+    super(callback, config);
     this.connected = false;
     this.baudRate = 115200; // Corrected common baud rate
     this.port = null;
@@ -11,65 +11,98 @@ class SerialCommunication extends ICommunicationMethod {
     this.callback = callback;
     this.reconectInterval = null;
 
-    this.connect();
+    // Handle the connect promise to avoid unhandled rejection
+    this.connect().catch((err) => {
+      console.error('Failed to connect to serial device during initialization:', err.message);
+      // Don't throw the error, just log it and continue
+      // The reconnection logic will handle retrying
+    });
   }
 
   connect() {
-    // List available ports and connect to Arduino
-    SerialPort.list().then((ports) => {
-      const portObject = ports.find(
-        (port) => port.manufacturer && port.manufacturer.includes('Arduino')
-      );
-      if (!portObject) {
-        console.error('⚠️ ⚠️ No Arduino device found.');
-        return;
+    return new Promise((resolve, reject) => {
+      // Check if already connected
+      if (this.connected && this.port && this.port.isOpen) {
+        console.log('Already connected to serial device');
+        return resolve({
+          description: "Connection Status",
+          value: "Already connected to serial device on " + this.port.path
+        });
       }
-      this.port = new SerialPort({
-        path: portObject.path,
-        baudRate: this.baudRate,
-        autoOpen: false,
-      });
 
-      this.parser = this.port.pipe(new ReadlineParser({ delimiter: '\n' }));
+      // List available ports and connect to serial device
+      SerialPort.list().then((ports) => {
+        const portObject = ports.find(
+          (port) => port.manufacturer && port.manufacturer.includes('Arduino')
+        );
+        if (!portObject) {
+          console.error('⚠️ ⚠️ No serial device device found.');
+          return reject(new Error('No serial device device found'));
+        }
 
-      this.port.on('open', () => {
-        this.onConnect(portObject);
-      });
-
-      this.port.on('error', (err) => {
-        this.connected = false;
-        console.error('Serial port error:', err.message);
-        if (this.callback) this.callback('error', err.message);
-        console.log('attempting to reconnect');
-        this.port.open((err) => {
-          if (err) {
-            console.error('Error opening port:', err.message);
+        // Close existing port if it exists but isn't properly connected
+        if (this.port && !this.port.isOpen) {
+          try {
+            this.port.removeAllListeners();
+          } catch (e) {
+            // Ignore errors when cleaning up
           }
+        }
+
+        this.port = new SerialPort({
+          path: portObject.path,
+          baudRate: this.baudRate,
+          autoOpen: false,
         });
 
-      });
+        this.parser = this.port.pipe(new ReadlineParser({ delimiter: '\n' }));
 
-      this.port.on('close', () => {
-        this.connected = false;
-        console.log('Serial port closed');
-        if (this.callback) this.callback('The arduino is disconnected');
-        this.onDisconnected()
-      });
+        this.port.on('open', () => {
+          this.onConnect(portObject);
+          // Resolve the promise when connection is successful
+          resolve({
+            description: "Connection Status",
+            value: "Connected to serial device on " + portObject.path
+          });
+        });
 
-      this.parser.on('data', (data) => {
-        this.receive(data)
-      })
+        this.port.on('error', (err) => {
+          this.connected = false;
+          console.error('Serial port error:', err.message);
+          if (this.callback) this.callback('error', err.message);
+          reject(new Error('Serial port error: ' + err.message));
+        });
 
-      this.port.open((err) => {
-        if (err) {
-          console.error('Failed to open serial port:', err.message);
-        }
+        this.port.on('close', () => {
+          this.connected = false;
+          console.log('Serial port closed');
+          if (this.callback) this.callback('The serial device is disconnected');
+          this.onDisconnected();
+        });
+
+        this.parser.on('data', (data) => {
+          this.receive(data);
+        });
+
+        this.port.open((err) => {
+          if (err) {
+            console.error('Failed to open serial port:', err.message);
+            reject(new Error('Failed to open serial port: ' + err.message));
+          }
+        });
+      }).catch((err) => {
+        reject(new Error('Error listing serial ports: ' + err.message));
       });
     });
   }
 
-  checkConnection() {
-    return this.connected;
+  checkConection() {
+    return new Promise((resolve) => {
+      resolve({
+        description: "Connection Status",
+        value: this.connected ? "Connected" : "Disconnected"
+      });
+    });
   }
 
   write(data) {
@@ -187,7 +220,7 @@ class SerialCommunication extends ICommunicationMethod {
   onConnect(portObject) {
     this.connected = true;
     console.log(`Serial port opened: ${portObject.path}`);
-    if (this.callback) this.callback('The arduino is connected');
+    if (this.callback) this.callback('The serial device is connected');
     // remove interval for reconnect if any exists
     if (this.reconnectInterval) {
       clearInterval(this.reconnectInterval);
@@ -200,40 +233,58 @@ class SerialCommunication extends ICommunicationMethod {
     // data from serial could be either an event or a response to a prior command
     console.log("new serial communication");
     console.log(newData);
-    const parts = newData.split(':');
-    const commandName = parts[0];
-    const value = parts[1].trimEnd();
 
-    let updateObject = {
-      description: commandName,
-      value: value,
-      // type: notifyObject.type,
-    };
-
-    // If there's a pending read promise, resolve it and return
-    if (this._pendingRead) {
-      console.log("open read promise found, resolving with data:", newData);
-      const handler = this._pendingRead;
-      this._pendingRead = null;
-      handler(updateObject);
+    // Add safety check for newData
+    if (!newData || typeof newData !== 'string') {
+      console.warn('Invalid serial data received:', newData);
       return;
     }
 
-    // Otherwise, treat as a regular event/notification
-    if (parts.length === 2) {
-      try {
-        console.log(updateObject);
-        if (this.callback) {
-          this.callback(JSON.stringify(updateObject));
+    const parts = newData.split(':');
+    const commandName = parts[0];
+
+    // Safety check for parts[1] before calling trimEnd()
+    const value = parts.length > 1 && parts[1] ? parts[1].trimEnd() : '';
+    console.log(this.config);
+    let notifyObject = null;
+    if (this.config &&
+      this.config.functions &&
+      this.config.functions.notifications &&
+      this.config.functions.notifications[commandName]) {
+      notifyObject = this.config.functions.notifications[commandName];
+    }
+
+    if (parts.length >= 2 && commandName && value) {
+      let updateObject = {
+        description: commandName,
+        value: value,
+      };
+      // If there's a pending read promise, resolve it and return
+      if (this._pendingRead) {
+        this._pendingRead(updateObject);
+        return;
+      } else if (notifyObject != null) {
+        // Otherwise, treat as a regular event/notification
+        // check if commandName exists in notifications
+
+        let updateObject = {
+          description: notifyObject.info,
+          value: notifyObject.value,
+          type: notifyObject.type,
         }
-      } catch (error) {
-        console.log(error);
+        this.callback(JSON.stringify(updateObject));
+      } else {
+        // Handle malformed data
+        console.warn('no pending read or notification found for: ', newData);
+        /*
+         this.callback(JSON.stringify({
+           description: 'raw_data',
+           value: newData
+         }));
+         */
       }
     } else {
-      // Handle unexpected format or just pass raw data
-      if (this.callback) {
-        this.callback(JSON.stringify({ description: "raw", value: newData }));
-      }
+      console.warn('Malformed serial data received:', newData);
     }
   }
 
