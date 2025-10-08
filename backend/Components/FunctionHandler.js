@@ -38,6 +38,7 @@ class FunctionHandler {
           },
         },
       },
+      /*
       {
         name: "checkCamera",
         description: "Describe the scene as if you were seeing it with your eye. Use this function if your unsure what is happening or if asked what you see.",
@@ -51,6 +52,7 @@ class FunctionHandler {
           },
         },
       },
+      */
     ];
 
     // Add functions from config

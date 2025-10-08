@@ -33,7 +33,6 @@ const config = {
   communicationMethod: "Serial", //Serial or "BLE"
   //  serviceUuid: "19b10000-e8f2-537e-4f6c-d104768a1214", // Only needed for BLE
 
-
   // These are actions is things the LLM can do 
   // The list of functions should match those set up on the arduino
   functions: {
@@ -56,6 +55,12 @@ const config = {
         dataType: "number",
         description: "Sets the motor one's speed. One byte: 0 is off, 255 is full speed",
       },
+      /* example of adding a camera function, this is experimental and not fully supported yet
+      checkCamera: {
+        dataType: "number",
+        description: "Describe the scene as if you were seeing it with your eye. Use this function if your unsure what is happening or if asked what you see.",
+      },
+      */
     },
     notifications: {
       // These are notifications that the LLM can receive

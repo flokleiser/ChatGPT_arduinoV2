@@ -37,7 +37,11 @@ class SerialCommunication extends ICommunicationMethod {
         );
         if (!portObject) {
           console.error('⚠️ ⚠️ No serial device device found.');
-          return reject(new Error('No serial device device found'));
+          return resolve({
+            description: "Connection Status",
+            value: "Error: No serial device found",
+            error: true
+          });
         }
 
         // Close existing port if it exists but isn't properly connected
@@ -70,7 +74,11 @@ class SerialCommunication extends ICommunicationMethod {
           this.connected = false;
           console.error('Serial port error:', err.message);
           if (this.callback) this.callback('error', err.message);
-          reject(new Error('Serial port error: ' + err.message));
+          resolve({
+            description: "Connection Status",
+            value: "Error: " + err.message,
+            error: true
+          });
         });
 
         this.port.on('close', () => {
@@ -87,11 +95,19 @@ class SerialCommunication extends ICommunicationMethod {
         this.port.open((err) => {
           if (err) {
             console.error('Failed to open serial port:', err.message);
-            reject(new Error('Failed to open serial port: ' + err.message));
+            resolve({
+              description: "Connection Status",
+              value: "Error: Failed to open serial port: " + err.message,
+              error: true
+            });
           }
         });
       }).catch((err) => {
-        reject(new Error('Error listing serial ports: ' + err.message));
+        resolve({
+          description: "Connection Status",
+          value: "Error: Error listing serial ports: " + err.message,
+          error: true
+        });
       });
     });
   }
@@ -106,16 +122,24 @@ class SerialCommunication extends ICommunicationMethod {
   }
 
   write(data) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (!this.port || !this.port.isOpen) {
-        return reject(new Error('Serial port not open, trying to reconnect'));
+        return resolve({
+          description: 'Writing to Serial',
+          value: "Error: Serial port not open, trying to reconnect",
+          error: true
+        });
       }
       const dataToSend = "" + data.name + "" + data.value;
       console.log('Writing to serial:', dataToSend);
       this.port.write(dataToSend + '\n', (err) => {
         if (err) {
           console.error('Error writing to serial:', err.message);
-          return reject(err);
+          return resolve({
+            description: 'Writing to Serial',
+            value: "Error: " + err.message,
+            error: true
+          });
         }
         resolve({ description: 'Writing to Serial', value: dataToSend });
       });
@@ -143,9 +167,13 @@ class SerialCommunication extends ICommunicationMethod {
     const dataToSend = "" + command.name + ""
     console.log("waiting for read response on command:" + dataToSend);
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (!this.port || !this.port.isOpen) {
-        return reject(new Error('Serial port not open'));
+        return resolve({
+          description: 'response',
+          value: "Error: Serial port not open",
+          error: true
+        });
       }
 
       // Set up a one-time handler for the next response
@@ -165,7 +193,11 @@ class SerialCommunication extends ICommunicationMethod {
       // Set up a timeout
       timeoutId = setTimeout(() => {
         this._pendingRead = null;
-        reject(new Error('Serial read timed out'));
+        resolve({
+          description: 'response',
+          value: "Error: Serial read timed out",
+          error: true
+        });
       }, 3000); // 3 seconds timeout
 
       // Send the command to the serial device
@@ -173,7 +205,11 @@ class SerialCommunication extends ICommunicationMethod {
         if (err) {
           clearTimeout(timeoutId);
           this._pendingRead = null;
-          return reject(err);
+          resolve({
+            description: 'response',
+            value: "Error: " + err.message,
+            error: true
+          });
         }
       });
     });
@@ -214,7 +250,7 @@ class SerialCommunication extends ICommunicationMethod {
         clearInterval(this.reconectInterval);
         this.reconectInterval = null;
       }
-    }, 5000); // try to reconnect every 5 seconds
+    }, 10000); // try to reconnect every 10 seconds
   }
 
   onConnect(portObject) {
