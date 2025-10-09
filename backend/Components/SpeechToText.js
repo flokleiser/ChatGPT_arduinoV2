@@ -8,11 +8,13 @@ const __dirname = path.dirname(__filename);
 
 class SpeechToText {
 
-    constructor(speechRecievedCallback = this.defaultCallback) {
+    constructor(speechRecievedCallback = this.defaultCallback, textToSpeechModel = 1) {
+        this.textToSpeechModel = textToSpeechModel;
         this.speechRecievedCallback = speechRecievedCallback;
-        this.py = spawn('python3', ['scriptSTT.py'], {
+        this.py = spawn('python3', ['scriptSTT.py', '--model', this.textToSpeechModel.toString()], {
             cwd: path.join(__dirname, '../../python') // Correct relative path
         });
+
         // Listen for any message from Python
          this.py.stdout.on('data', (data) => {
             data.toString().split('\n').filter(Boolean).forEach(line => {

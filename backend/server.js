@@ -169,7 +169,8 @@ async function main() {
 
     // 2. Initialize speech to text
     console.log('🎤 Initializing speech to text...');
-    currentInstances.speechToText = new SpeechToText(callBackSpeechToText);
+    
+    currentInstances.speechToText = new SpeechToText(callBackSpeechToText,  config.speechRecognitionModel);
 
     // 3. Setup Express middleware
     currentInstances.app.use(cors());

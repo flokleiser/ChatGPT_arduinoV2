@@ -3,6 +3,7 @@
 
 import os
 import sys
+import argparse
 import json
 import numpy as np
 import time
@@ -36,10 +37,10 @@ THRESHOLD = 100  # Adjust this to match your environment's noise level
 
 MODEL_PATH = "STTmodels/"  # Default model path
 MODEL_DEFAULT = "vosk-model-small-en-us-0.15"  # Default model https://alphacephei.com/vosk/models/vosk-model-en-us-0.22.zip
-MODEL_SMALL= "vosk-model-small-en-us-0.15"  # Default model
-MODEL_EN_LARGE = "vosk-model-en-us-0.22"       # Large English model
+MODEL_SMALL= "vosk-model-small-en-us-0.15" 
+MODEL_EN_LARGE = "vosk-model-en-us-0.22-lgraph"       # Large English model
 MODEL_DE_SMALL = "vosk-model-small-de-0.15"    # German model
-
+current_model = 0  # Default model index
 # Global variables for communication
 _recognizer = None
 _recognizer_ready = threading.Event()
@@ -50,14 +51,14 @@ class SpeechRecognizer:
     Speech recognition using Vosk.
     """
     def __init__(self, audio_source, size="medium", callback=None, rate=RATE, chunk=CHUNK, modelName=MODEL_DEFAULT):
-        # Map size string to actual model name
-        if size == "small":
+       
+        if current_model == 0:
             modelName = MODEL_DEFAULT
-        elif size == "large":
+        elif current_model == 1:
             modelName = MODEL_EN_LARGE
-        elif size == "german":
+        elif current_model == 2:
             modelName = MODEL_DE_SMALL
-        
+        print(f"Using model: {current_model}", file=sys.stderr)
         # Check if model exists, otherwise download
         if not check_model_exists(modelName, MODEL_PATH):
             print(f"Model '{modelName}' not found. Attempting to download...", file=sys.stderr)
@@ -335,8 +336,20 @@ def stdin_listener():
             print(json.dumps({"error": str(e)}))
             sys.stdout.flush()         
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='Text to Speech Service')
+    parser.add_argument('--model', type=int, default=0,
+                       help='Initial TTS model to use')
+    return parser.parse_args()
+
+
 def main():
     try:
+        global current_model
+        args = parse_arguments()
+        current_model = args.model
+        print("\n🎤 Current STT Model:", current_model, file=sys.stderr)
+        
         # Check if VOSK is available before starting
         if not vosk_available:
             print("❌ Vosk is required but not installed. Please install with: pip install vosk", file=sys.stderr)

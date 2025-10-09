@@ -5,10 +5,13 @@ import sounddevice as sd
 from piper.voice import PiperVoice
 import threading
 import queue
+import time  # Add this at the top with other imports
 import os
 from model_downloader import download_piper_voice
 
 # Global variables
+CYAN = '\033[96m'
+RESET = '\033[0m'
 tts_volume = 100
 MODEL_PATH = "TTSmodels/"
 TTS_MODELS = {
@@ -107,6 +110,8 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
     """Play TTS audio stream"""
     try:
         send_message("tts", "started")
+        synthesis_start = time.time()  # Start timing
+        
         
         # Find a supported sample rate
         target_sample_rate = get_supported_sample_rate(device)
@@ -139,6 +144,11 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
         try:
             # Method 1: Generator without wav_file
             print("Trying generator synthesis...", file=sys.stderr)
+                # Convert generator to list to measure synthesis time
+            synthesis_time = time.time() - synthesis_start
+            print(f"Speech synthesis completed in {CYAN}{synthesis_time:.2f}{RESET} seconds", file=sys.stderr)
+                
+            
             for audio_chunk in voice.synthesize(text):
                 if stop_event.is_set():
                     break

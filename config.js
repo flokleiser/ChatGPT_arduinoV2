@@ -1,5 +1,6 @@
 const config = {
-  voice: 0, // this can be used for defining the type of voice that is used for voice synthesis. Changing this value for the first time will cause a delay as the model is downloaded.
+  voice: 0, // 0: en_GB-cori-high, 1:en_GB-alan-medium, 2:en_US-lessac-medium, 3: de_DE-thorsten-medium. Changing this value may cause an initial delay as the model is downloaded.
+  speechRecognitionModel: 0, // 0: small english, 1: medium english, 2: small german. Changing this value may cause an initial delay as the model is downloaded.
 
   // WiFi Configuration (optional)
   // The system will auto-detect the network type based on your credentials:
@@ -55,12 +56,12 @@ const config = {
         dataType: "number",
         description: "Sets the motor one's speed. One byte: 0 is off, 255 is full speed",
       },
-      /* example of adding a camera function, this is experimental and not fully supported yet
-      checkCamera: {
-        dataType: "number",
-        description: "Describe the scene as if you were seeing it with your eye. Use this function if your unsure what is happening or if asked what you see.",
-      },
-      */
+       // example of adding a camera function, this is experimental and not fully supported yet
+      //checkCamera: {
+      //  dataType: "number",
+      //  description: "Describe the scene as if you were seeing it with your eye. Use this function if your unsure what is happening or if asked what you see.",
+     // },
+
     },
     notifications: {
       // These are notifications that the LLM can receive
