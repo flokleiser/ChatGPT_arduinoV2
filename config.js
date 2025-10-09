@@ -1,6 +1,6 @@
 const config = {
-  voice: 0, // 0: en_GB-cori-high, 1:en_GB-alan-medium, 2:en_US-lessac-medium, 3: de_DE-thorsten-medium. Changing this value may cause an initial delay as the model is downloaded.
-  speechRecognitionModel: 0, // 0: small english, 1: medium english, 2: small german. Changing this value may cause an initial delay as the model is downloaded.
+  voice: 2, // 0: en_GB-cori-high, 1:en_GB-alan-medium, 2:en_US-lessac-medium, 3: de_DE-thorsten-medium. Changing this value may cause an initial delay as the model is downloaded.
+  speechRecognitionModel: 1, // 0: small english, 1: medium english, 2: small german. Changing this value may cause an initial delay as the model is downloaded.
 
   // WiFi Configuration (optional)
   // The system will auto-detect the network type based on your credentials:
@@ -26,7 +26,7 @@ const config = {
     model: "gpt-4.1-nano", //gpt-4o-mini, gpt-4o, gpt-4, gpt-3.5-turbo, gpt-4.1-nano
     max_tokens: 4096, //Number between 1 and 8192. //The maximum number of tokens to generate in the completion. The token count of your prompt plus max_tokens cannot exceed the model's context length. Most models have a context length of 8192 tokens (except for the newest models, which can support more than 128k tokens).
     user_id: "1", //A unique identifier for the user. //This is used to track the usage of the API.
-    url: "https://api.openai.com/v1/chat/completions", // gpt-4 is "https://api.openai.com/v1/completions";
+    url: "https://api.openai.com/v1/chat/completions",
   },
 
   // openAIKey: "your-api-key-here",  
