@@ -170,7 +170,7 @@ async function main() {
     // 2. Initialize speech to text
     console.log('🎤 Initializing speech to text...');
     
-    currentInstances.speechToText = new SpeechToText(callBackSpeechToText,  config.speechRecognitionModel);
+    currentInstances.speechToText = new SpeechToText(callBackSpeechToText,  config.speechToTextModel);
 
     // 3. Setup Express middleware
     currentInstances.app.use(cors());
@@ -355,7 +355,7 @@ async function main() {
         try {
           updateFrontend(message, "assistant");
           console.log("Text to speech volume: " + ttsvolume);
-          textToSpeech.say(message, config.voice, ttsvolume);
+          textToSpeech.say(message, config.textToSpeechModel, ttsvolume);
         } catch (error) {
           console.log(error);
           updateFrontend(error, "error");

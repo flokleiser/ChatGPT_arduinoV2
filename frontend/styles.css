@@ -7,7 +7,7 @@ body {
   width: 100%;
   font-family: monospace;
   line-height: 1.4em;
-  font-size: 16px;
+  font-size: 1.3w;
   background: #000000;
   font-family: monospace;
 }
@@ -102,7 +102,7 @@ body {
 
 .system {
   color: rgb(84, 161, 255);
-  font-size: 1.1vw;
+
 }
 
 .assistant {
@@ -111,7 +111,6 @@ body {
 
 .error {
   color: rgb(255, 255, 0);
-  font-size: 1.1vw;
 }
 
 /* Define the styles for the microphone circle */
@@ -180,7 +179,7 @@ body {
 }
 
 .fade-out {
-  animation: fadeOut 4.5s ease-out forwards;
+  animation: fadeOut 8.5s ease-out forwards;
 }
 
 /* Ensure divs are visible by default */

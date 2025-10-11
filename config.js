@@ -1,6 +1,6 @@
 const config = {
-  voice: 2, // 0: en_GB-cori-high, 1:en_GB-alan-medium, 2:en_US-lessac-medium, 3: de_DE-thorsten-medium. Changing this value may cause an initial delay as the model is downloaded.
-  speechRecognitionModel: 1, // 0: small english, 1: medium english, 2: small german. Changing this value may cause an initial delay as the model is downloaded.
+  textToSpeechModel: 0, // 0: en_GB-cori-high, 1:en_GB-alan-medium, 2:en_US-lessac-medium, 3: de_DE-thorsten-medium. Changing this value may cause an initial delay as the model is downloaded.
+  speechToTextModel: 0, // 0: small english, 1: medium english, 2: small german. Changing this value may cause an initial delay as the model is downloaded.
 
   // WiFi Configuration (optional)
   // The system will auto-detect the network type based on your credentials:

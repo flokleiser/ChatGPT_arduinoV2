@@ -41,12 +41,26 @@ if ! grep -q "chromium-browser" "$AUTOSTART_FILE"; then
     echo "@chromium-browser --kiosk --disable-infobars --disable-restore-session-state http://localhost:5173" | sudo tee -a "$AUTOSTART_FILE"
 fi
 
-echo "Setting up autostart for kiosk mode..."
-# Add Chromium kiosk mode to autostart
-AUTOSTART_FILE="/etc/xdg/lxsession/LXDE-pi/autostart"
-if ! grep -q "chromium-browser" "$AUTOSTART_FILE"; then
-    echo "@chromium-browser --kiosk --disable-infobars --disable-restore-session-state http://localhost:5173" | sudo tee -a "$AUTOSTART_FILE"
-fi
+echo "Setting up application autostart..."
+# Create autostart directory if it doesn't exist
+mkdir -p ~/.config/autostart
+
+# Create the desktop entry file
+cat > ~/.config/autostart/chatgpt_arduino.desktop << EOL
+[Desktop Entry]
+Type=Application
+Name=ChatGPT_arduinoV2
+Comment=Start ChatGPT_arduinoV2 Kiosk
+Exec=$HOME/ChatGPT_arduinoV2/run.sh
+Path=$HOME/ChatGPT_arduinoV2/
+Icon=utilities-terminal
+Terminal=false
+EOL
+
+# Make run.sh executable if it isn't already
+chmod +x run.sh
+
+echo "Autostart configuration completed."
 
 echo "Setting up backend and frontend to start on boot..."
 
