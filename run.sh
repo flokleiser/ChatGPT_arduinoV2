@@ -171,6 +171,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   echo "Launching default browser on macOS..." &
   open http://localhost:5173 &
 else
+  export DISPLAY=:0
   echo "Launching Chromium in kiosk mode..."
   sleep 5  # Extra wait for desktop to finish loading
   if command -v chromium >/dev/null 2>&1; then
