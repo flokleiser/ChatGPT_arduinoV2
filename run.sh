@@ -18,6 +18,63 @@ log "Starting application"
 # Change to the directory where this script is located
 cd "$(dirname "$0")"
 
+# Function to check for updates
+check_for_updates() {
+    log "Checking for updates..."
+    
+    # Fetch latest changes without modifying local files
+    if ! git fetch origin main; then
+        log "⚠️ Failed to fetch updates. Continuing with current version."
+        return 1
+    }
+
+    # Get the number of commits behind
+    COMMITS_BEHIND=$(git rev-list HEAD..origin/main --count)
+    
+    if [ "$COMMITS_BEHIND" -gt 0 ]; then
+        log "📦 Updates available ($COMMITS_BEHIND new commits)"
+        
+        # Stash any local changes
+        if [ -n "$(git status --porcelain)" ]; then
+            log "Stashing local changes..."
+            git stash
+        fi
+        
+        # Pull updates
+        if git pull origin main; then
+            log "✅ Updated successfully"
+            
+            # Install any new dependencies
+            log "Checking for new dependencies..."
+            npm install
+            
+            # Update python packages if requirements.txt changed
+            if git diff HEAD@{1} HEAD --name-only | grep -q "requirements.txt"; then
+                log "📦 Python requirements changed, updating packages..."
+                source python/venv/bin/activate
+                pip3 install --no-deps -r python/requirements.txt
+            fi
+            
+            # Pop stashed changes if any
+            if [ -n "$(git stash list)" ]; then
+                log "Restoring local changes..."
+                git stash pop
+            fi
+            
+            # Restart the script
+            log "🔄 Restarting to apply updates..."
+            exec "$0"
+        else
+            log "⚠️ Update failed. Continuing with current version."
+        fi
+    else
+        log "✅ Already running latest version"
+    fi
+}
+
+# Check for updates
+check_for_updates
+
 # Activate Python virtual environment
 source python/venv/bin/activate
 
