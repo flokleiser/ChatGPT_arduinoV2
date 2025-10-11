@@ -67,21 +67,45 @@ fi
 
 echo "Setting up application autostart..."
 
-# Detect the actual user (even if running with sudo)
+# Determine the actual user who will run the autostart application
+# If script is run with sudo, SUDO_USER will be the original user
+# Otherwise, use the current user
 ACTUAL_USER=${SUDO_USER:-$USER}
 ACTUAL_HOME=$(eval echo ~$ACTUAL_USER)
+
+# Create the autostart directory in the user's home
 AUTOSTART_DIR="$ACTUAL_HOME/.config/autostart"
+mkdir -p "$AUTOSTART_DIR"
 
-# Create directory as the actual user
-sudo -u "$ACTUAL_USER" mkdir -p "$AUTOSTART_DIR"
-
-# Get absolute paths
+# Get absolute paths for the project and run script
 PROJECT_PATH=$(pwd)
 RUN_SCRIPT_PATH="$PROJECT_PATH/run.sh"
 
-# Create the autostart .desktop file as the actual user
-echo "Creating autostart file at $AUTOSTART_DIR/chatgpt-arduino.desktop"
-sudo -u "$ACTUAL_USER" tee "$AUTOSTART_DIR/chatgpt-arduino.desktop" > /dev/null << EOF
+# Create the autostart .desktop file
+DESKTOP_FILE="$AUTOSTART_DIR/chatgpt-arduino.desktop"
+echo "Creating autostart file at $DESKTOP_FILE"
+
+# Create the autostart file
+# If running as root/sudo, create the file as the actual user
+if [ "$USER" = "root" ]; then
+    # Create the file as the original user if running with sudo
+    sudo -u "$ACTUAL_USER" bash -c "cat > $DESKTOP_FILE << EOF
+[Desktop Entry]
+Type=Application
+Name=ChatGPT_arduinoV2
+Comment=Start ChatGPT_arduinoV2 Kiosk
+Exec=$RUN_SCRIPT_PATH
+Path=$PROJECT_PATH
+Icon=utilities-terminal
+Terminal=false
+Categories=Application;
+X-GNOME-Autostart-enabled=true
+EOF"
+    # Set proper permissions
+    sudo -u "$ACTUAL_USER" chmod 755 "$DESKTOP_FILE"
+else
+    # Create the file directly if running as regular user
+    cat > "$DESKTOP_FILE" << EOF
 [Desktop Entry]
 Type=Application
 Name=ChatGPT_arduinoV2
@@ -93,11 +117,18 @@ Terminal=false
 Categories=Application;
 X-GNOME-Autostart-enabled=true
 EOF
+    # Set proper permissions
+    chmod 755 "$DESKTOP_FILE"
+fi
 
-# Set proper permissions and verify file exists
-sudo -u "$ACTUAL_USER" chmod 644 "$AUTOSTART_DIR/chatgpt-arduino.desktop"
-if [ -f "$AUTOSTART_DIR/chatgpt-arduino.desktop" ]; then
-    echo "✅ Autostart file created successfully"
+# Verify file exists
+if [ -f "$DESKTOP_FILE" ]; then
+    echo "✅ Autostart file created successfully at $DESKTOP_FILE"
+    
+    # Special case for Raspberry Pi - check if we're on a Pi and confirm location
+    if [ -f "/etc/os-release" ] && grep -q "Raspberry Pi" /etc/os-release; then
+        echo "📌 Running on Raspberry Pi, autostart file location confirmed"
+    fi
 else
     echo "❌ Failed to create autostart file"
 fi
