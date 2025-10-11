@@ -34,11 +34,13 @@ npm install
 
 # Set up Python virtual environment and install packages
 echo "Setting up Python environment and installing packages..."
-# Ensure PortAudio dev headers are installed for pyaudio
-sudo apt-get install -y portaudio19-dev
+# Ensure PortAudio dev headers are installed for pyaudio and other dependencies
+sudo apt-get install -y portaudio19-dev build-essential python3-dev libffi-dev
 python3 -m venv python/venv
 source python/venv/bin/activate
-pip3 install --no-deps -r python/requirements.txt
+pip3 install --upgrade pip wheel setuptools
+pip3 install cffi
+pip3 install -r python/requirements.txt
 
 
 # TODO  install STT and TTS models
