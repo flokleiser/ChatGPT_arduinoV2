@@ -119,7 +119,7 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
         buffer_size = 1024  # Smaller buffer = less latency but more CPU
         
         if target_sample_rate is None:
-            stream = sd.OutputStream(channels=1, dtype='int16', device=device, blocksize=buffer_size)
+            stream = sd.OutputStream(channels=1, dtype='int16', device=device, blocksize=buffer_size,latency='low',)
             target_sample_rate = stream.samplerate
         else:
             stream = sd.OutputStream(
@@ -127,7 +127,8 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
                     channels=1,
                     dtype='int16',
                     device=device,
-                    blocksize=buffer_size
+                    blocksize=buffer_size,
+                    latency='low',
             )
         
         # Get original sample rate for resampling
@@ -142,12 +143,74 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
             print(f"Will resample from {original_rate}Hz to {actual_target_rate}Hz", file=sys.stderr)
         
         # Helper function to process and play a chunk
-        def process_chunk(chunk_data):
+        def process_chunk(chunk_data, force_split=False):
             if not chunk_data:
                 return
                 
             int_data = np.frombuffer(chunk_data, dtype=np.int16)
             
+            # Force split large chunks into smaller pieces for more responsive playback
+            # This helps when Piper generates the entire audio in one large chunk
+            if force_split and len(int_data) > 8000:  # ~0.5 seconds at 16kHz
+                print(f"Splitting large chunk ({len(int_data)} samples) for faster playback start", file=sys.stderr)
+                
+                # Use a smaller first chunk for immediate playback
+                first_chunk_size = 1600  # ~0.1 seconds - just enough for immediate feedback
+                first_sub = int_data[:first_chunk_size].copy()  # Take a small first piece
+                
+                # Skip intensive processing for first chunk to get audio started ASAP
+                # Apply only minimal volume scaling if needed
+                if tts_volume != 100:
+                    # Simple and fast volume adjustment
+                    first_sub = (first_sub * (tts_volume / 100.0)).astype(np.int16)
+                
+                # Play first sub-chunk immediately without resampling
+                if len(first_sub) > 0 and not stop_event.is_set():
+                    print("About to write first sub-chunk", file=sys.stderr)
+                    stream.write(first_sub)
+                    print(f"First sub-chunk of {len(first_sub)} samples playing immediately", file=sys.stderr)
+                
+                # Process the rest of the audio in larger chunks
+                chunk_size = 8000  # Larger chunks for the rest of the audio
+                
+                # Start from where the first sub-chunk ended
+                remaining_data = int_data[first_chunk_size:]
+                
+                # Process remaining audio in chunks without creating a full list up front
+                # This avoids memory spikes and is more efficient
+                for i in range(0, len(remaining_data), chunk_size):
+                    if stop_event.is_set():
+                        break
+                    
+                    end_idx = min(i + chunk_size, len(remaining_data))
+                    sub_chunk = remaining_data[i:end_idx]
+                    
+                    if needs_resampling and len(sub_chunk) > 0:
+                        # More efficient resampling for large chunks
+                        old_indices = np.arange(len(sub_chunk))
+                        new_length = int(len(sub_chunk) * ratio)
+                        if new_length > 0:
+                            new_indices = np.linspace(0, len(sub_chunk) - 1, new_length)
+                            sub_chunk = np.interp(new_indices, old_indices, sub_chunk).astype(np.int16)
+                    
+                    # Apply volume scaling
+                    if tts_volume != 100:
+                        float_data = sub_chunk.astype(np.float32)
+                        float_data = float_data * (tts_volume / 100.0)
+                        sub_chunk = np.clip(float_data, -32768, 32767).astype(np.int16)
+                    
+                    # Play this sub-chunk
+                    if len(sub_chunk) > 0 and not stop_event.is_set():
+                        # Handle pause/resume
+                        while pause_event.is_set() and not stop_event.is_set():
+                            sd.sleep(100)
+                        
+                        if not stop_event.is_set():
+                            stream.write(sub_chunk)
+                
+                return  # We've handled the chunk, so return
+            
+            # Process normal-sized chunks as before
             # Resample if needed
             if needs_resampling and len(int_data) > 0:
                 old_indices = np.arange(len(int_data))
@@ -190,10 +253,16 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
                 first_chunk_time = time.time() - first_chunk_start
                 print(f"First chunk generated in {CYAN}{first_chunk_time:.2f}{RESET} seconds", file=sys.stderr)
                 
-                # Process and play first chunk right away
-                first_chunk_data = extract_audio_from_chunk(first_chunk)
+                # Start measuring time for processing
                 process_start = time.time()
-                process_chunk(first_chunk_data)
+                
+                # Extract and immediately start processing the first chunk
+                first_chunk_data = extract_audio_from_chunk(first_chunk)
+                
+                # Force split the first chunk since it likely contains all audio on Pi
+                print(f"Starting audio playback...", file=sys.stderr)
+                process_chunk(first_chunk_data, force_split=True)
+                
                 process_time = time.time() - process_start
                 print(f"First chunk processed and playing in {CYAN}{process_time:.2f}{RESET} seconds", file=sys.stderr)
                 
@@ -231,9 +300,15 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
                     first_chunk_time = time.time() - first_chunk_start
                     print(f"First chunk generated in {CYAN}{first_chunk_time:.2f}{RESET} seconds", file=sys.stderr)
                     
-                    first_chunk_data = extract_audio_from_chunk(first_chunk)
                     process_start = time.time()
-                    process_chunk(first_chunk_data)
+                    
+                    # Extract and immediately start processing the first chunk
+                    first_chunk_data = extract_audio_from_chunk(first_chunk)
+                    
+                    # Force split the first chunk for faster playback start
+                    print(f"Starting audio playback (fallback method)...", file=sys.stderr)
+                    process_chunk(first_chunk_data, force_split=True)
+                    
                     process_time = time.time() - process_start
                     print(f"First chunk processed and playing in {CYAN}{process_time:.2f}{RESET} seconds", file=sys.stderr)
                     
