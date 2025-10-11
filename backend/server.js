@@ -413,8 +413,7 @@ async function main() {
     });
 
   } catch (error) {
-    console.error('❌ Failed to start application:', error);
-    await cleanup(false);
+    console.error('❌ incomplete start of application:', error);
     throw error;
   }
 }
