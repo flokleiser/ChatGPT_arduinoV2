@@ -26,22 +26,22 @@ class ChatGPTAPI {
   // Function to get API key from either .env or config.js
   getApiKey(config) {
     try {
-      if (config.openAIKey) {
+      if (config.OPENAI_API_KEY) {
         console.log("Using API key from config.js");
         // Write to .env if not already present or if different
         const envPath = path.resolve(process.cwd(), '.env');
         let shouldWrite = true;
         if (fs.existsSync(envPath)) {
           const envContent = fs.readFileSync(envPath, 'utf-8');
-          if (envContent.includes(`OPENAI_API_KEY='${config.openAIKey}'`)) {
+          if (envContent.includes(`OPENAI_API_KEY='${config.OPENAI_API_KEY}'`)) {
             shouldWrite = false;
           }
         }
         if (shouldWrite) {
-          fs.writeFileSync(envPath, `OPENAI_API_KEY='${config.openAIKey}'\n`, { flag: 'w' });
+          fs.writeFileSync(envPath, `OPENAI_API_KEY='${config.OPENAI_API_KEY}'\n`, { flag: 'w' });
           console.log(".env file created/updated with OpenAI API key.");
         }
-        return config.openAIKey;
+        return config.OPENAI_API_KEY;
       } else {
         if (process.env.OPENAI_API_KEY) {
           console.log("Using API key from .env file");
