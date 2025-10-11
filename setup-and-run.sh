@@ -14,9 +14,15 @@ echo "Updating system..."
 sudo apt update && sudo apt upgrade -y
 
 echo "Installing required software..."
-# Install Node.js, Chromium, Git and libusb
+
+# Install Node.js, Chromium (Bookworm or Bullseye), Git and libusb
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt install -y nodejs chromium-browser git libusb-1.0-0-dev
+if sudo apt install -y nodejs chromium git libusb-1.0-0-dev; then
+  echo "Installed chromium (Bookworm or newer)"
+else
+  echo "Trying alternative Chromium package name (Bullseye or older)..."
+  sudo apt install -y nodejs chromium-browser git libusb-1.0-0-dev
+fi
 
 # Navigate to the project directory
 cd "$(dirname "$0")"
