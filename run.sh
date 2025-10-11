@@ -26,7 +26,6 @@ check_for_updates() {
     if ! git fetch origin main; then
         log "⚠️ Failed to fetch updates. Continuing with current version."
         return 1
-    }
 
     # Get the number of commits behind
     COMMITS_BEHIND=$(git rev-list HEAD..origin/main --count)
