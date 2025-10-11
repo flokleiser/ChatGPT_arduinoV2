@@ -31,8 +31,11 @@ echo "Installing project dependencies..."
 # Install dependencies for the entire workspace
 npm install
 
+
 # Set up Python virtual environment and install packages
 echo "Setting up Python environment and installing packages..."
+# Ensure PortAudio dev headers are installed for pyaudio
+sudo apt-get install -y portaudio19-dev
 python3 -m venv python/venv
 source python/venv/bin/activate
 pip3 install --no-deps -r python/requirements.txt
