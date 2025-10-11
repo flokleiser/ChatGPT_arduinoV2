@@ -112,23 +112,23 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
         send_message("tts", "started")
         synthesis_start = time.time()  # Start timing
         
-        
         # Find a supported sample rate
         target_sample_rate = get_supported_sample_rate(device)
         
+        # Set buffer size for lower latency
+        buffer_size = 1024  # Smaller buffer = less latency but more CPU
+        
         if target_sample_rate is None:
-            stream = sd.OutputStream(channels=1, dtype='int16', device=device)
+            stream = sd.OutputStream(channels=1, dtype='int16', device=device, blocksize=buffer_size)
             target_sample_rate = stream.samplerate
         else:
             stream = sd.OutputStream(
-                samplerate=target_sample_rate, 
-                channels=1,
-                dtype='int16',
-                device=device
+                    samplerate=target_sample_rate, 
+                    channels=1,
+                    dtype='int16',
+                    device=device,
+                    blocksize=buffer_size
             )
-        
-        stream.start()
-        print(f"Audio stream started with {stream.samplerate}Hz", file=sys.stderr)
         
         # Get original sample rate for resampling
         original_rate = voice.config.sample_rate
@@ -136,98 +136,131 @@ def play_stream(voice, text, stop_event, pause_event, device=None):
         
         # Calculate resampling ratio
         needs_resampling = original_rate != actual_target_rate
+        ratio = actual_target_rate / original_rate if needs_resampling else 1.0
+        
         if needs_resampling:
-            ratio = actual_target_rate / original_rate
             print(f"Will resample from {original_rate}Hz to {actual_target_rate}Hz", file=sys.stderr)
         
-        # Try different synthesis methods
-        try:
-            # Method 1: Generator without wav_file
-            print("Trying generator synthesis...", file=sys.stderr)
-                # Convert generator to list to measure synthesis time
-            synthesis_time = time.time() - synthesis_start
-            print(f"Speech synthesis completed in {CYAN}{synthesis_time:.2f}{RESET} seconds", file=sys.stderr)
+        # Helper function to process and play a chunk
+        def process_chunk(chunk_data):
+            if not chunk_data:
+                return
                 
+            int_data = np.frombuffer(chunk_data, dtype=np.int16)
             
-            for audio_chunk in voice.synthesize(text):
-                if stop_event.is_set():
-                    break
-                    
-                chunk_data = extract_audio_from_chunk(audio_chunk)
-                if not chunk_data:
-                    continue
+            # Resample if needed
+            if needs_resampling and len(int_data) > 0:
+                old_indices = np.arange(len(int_data))
+                new_length = int(len(int_data) * ratio)
+                if new_length > 0:
+                    new_indices = np.linspace(0, len(int_data) - 1, new_length)
+                    int_data = np.interp(new_indices, old_indices, int_data).astype(np.int16)
+            
+            # Apply volume scaling
+            if tts_volume != 100:
+                float_data = int_data.astype(np.float32)
+                float_data = float_data * (tts_volume / 100.0)
+                int_data = np.clip(float_data, -32768, 32767).astype(np.int16)
+            
+            # Play this chunk
+            if len(int_data) > 0 and not stop_event.is_set():
+                # Handle pause/resume
+                while pause_event.is_set() and not stop_event.is_set():
+                    sd.sleep(100)
                 
-                # Process chunk immediately
-                int_data = np.frombuffer(chunk_data, dtype=np.int16)
-                
-                # Resample this chunk if needed
-                if needs_resampling and len(int_data) > 0:
-                    old_indices = np.arange(len(int_data))
-                    new_length = int(len(int_data) * ratio)
-                    if new_length > 0:
-                        new_indices = np.linspace(0, len(int_data) - 1, new_length)
-                        int_data = np.interp(new_indices, old_indices, int_data).astype(np.int16)
-                
-                # Apply volume scaling
-                if tts_volume != 100:
-                    float_data = int_data.astype(np.float32)
-                    float_data = float_data * (tts_volume / 100.0)
-                    int_data = np.clip(float_data, -32768, 32767).astype(np.int16)
-                
-                # Play this chunk immediately
-                if len(int_data) > 0:
-                    # Handle pause/resume
-                    while pause_event.is_set():
-                        sd.sleep(100)
-                        if stop_event.is_set():
-                            break
-                    
-                    if stop_event.is_set():
-                        break
-                        
+                if not stop_event.is_set():
                     stream.write(int_data)
-                    
-        except TypeError as e:
-            if "missing 1 required positional argument: 'wav_file'" in str(e):
-                print("Trying generator with wav_file=None...", file=sys.stderr)
-                for audio_chunk in voice.synthesize(text, wav_file=None):
-                    # Same processing as above...
+        
+        # Start the stream
+        stream.start()
+        print(f"Audio stream started with {stream.samplerate}Hz", file=sys.stderr)
+        
+        try:
+            # Create a generator but don't start full synthesis yet
+            print("Trying generator synthesis...", file=sys.stderr)
+            
+            # Process just the first chunk to get audio started ASAP
+            first_chunk_start = time.time()
+            try:
+                # Start the generator
+                synthesis_gen = voice.synthesize(text)
+                
+                # Get first chunk and process it immediately
+                first_chunk = next(synthesis_gen)
+                first_chunk_time = time.time() - first_chunk_start
+                print(f"First chunk generated in {CYAN}{first_chunk_time:.2f}{RESET} seconds", file=sys.stderr)
+                
+                # Process and play first chunk right away
+                first_chunk_data = extract_audio_from_chunk(first_chunk)
+                process_start = time.time()
+                process_chunk(first_chunk_data)
+                process_time = time.time() - process_start
+                print(f"First chunk processed and playing in {CYAN}{process_time:.2f}{RESET} seconds", file=sys.stderr)
+                
+                # Now process the rest of the chunks in the background
+                rest_start = time.time()
+                for audio_chunk in synthesis_gen:
                     if stop_event.is_set():
                         break
-                        
+                    
                     chunk_data = extract_audio_from_chunk(audio_chunk)
-                    if not chunk_data:
-                        continue
+                    process_chunk(chunk_data)
+                
+                rest_time = time.time() - rest_start
+                total_time = time.time() - synthesis_start
+                print(f"Remaining chunks processed in {CYAN}{rest_time:.2f}{RESET} seconds", file=sys.stderr)
+                print(f"Total TTS pipeline: {CYAN}{total_time:.2f}{RESET} seconds", file=sys.stderr)
+                
+            except StopIteration:
+                # Handle case with only one chunk
+                print("Synthesis produced only one audio chunk", file=sys.stderr)
+                
+        except TypeError as e:
+            # Fallback to other method if needed
+            if "missing 1 required positional argument: 'wav_file'" in str(e):
+                print("Falling back to generator with wav_file=None...", file=sys.stderr)
+                
+                # Similar approach with the alternate method but optimized for first chunk
+                first_chunk_start = time.time()
+                try:
+                    # Start the generator with wav_file=None
+                    synthesis_gen = voice.synthesize(text, wav_file=None)
                     
-                    int_data = np.frombuffer(chunk_data, dtype=np.int16)
+                    # Get and process first chunk immediately
+                    first_chunk = next(synthesis_gen)
+                    first_chunk_time = time.time() - first_chunk_start
+                    print(f"First chunk generated in {CYAN}{first_chunk_time:.2f}{RESET} seconds", file=sys.stderr)
                     
-                    if needs_resampling and len(int_data) > 0:
-                        old_indices = np.arange(len(int_data))
-                        new_length = int(len(int_data) * ratio)
-                        if new_length > 0:
-                            new_indices = np.linspace(0, len(int_data) - 1, new_length)
-                            int_data = np.interp(new_indices, old_indices, int_data).astype(np.int16)
+                    first_chunk_data = extract_audio_from_chunk(first_chunk)
+                    process_start = time.time()
+                    process_chunk(first_chunk_data)
+                    process_time = time.time() - process_start
+                    print(f"First chunk processed and playing in {CYAN}{process_time:.2f}{RESET} seconds", file=sys.stderr)
                     
-                    if tts_volume != 100:
-                        float_data = int_data.astype(np.float32) * (tts_volume / 100.0)
-                        int_data = np.clip(float_data, -32768, 32767).astype(np.int16)
-                    
-                    if len(int_data) > 0:
-                        while pause_event.is_set():
-                            sd.sleep(100)
-                            if stop_event.is_set():
-                                break
-                        
+                    # Process remaining chunks
+                    rest_start = time.time()
+                    for audio_chunk in synthesis_gen:
                         if stop_event.is_set():
                             break
-                            
-                        stream.write(int_data)
+                        
+                        chunk_data = extract_audio_from_chunk(audio_chunk)
+                        process_chunk(chunk_data)
+                    
+                    rest_time = time.time() - rest_start
+                    total_time = time.time() - synthesis_start
+                    print(f"Remaining chunks processed in {CYAN}{rest_time:.2f}{RESET} seconds", file=sys.stderr)
+                    print(f"Total TTS pipeline: {CYAN}{total_time:.2f}{RESET} seconds", file=sys.stderr)
+                    
+                except StopIteration:
+                    print("Fallback synthesis produced only one audio chunk", file=sys.stderr)
             else:
                 raise
+
         
+        # Clean up
         stream.stop()
         stream.close()
-        sd.sleep(600)
+        sd.sleep(600)  # Small delay to ensure audio is fully played
         send_message("tts", "stopped")
         
     except Exception as e:

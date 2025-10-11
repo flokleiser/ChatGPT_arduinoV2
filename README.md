@@ -35,8 +35,6 @@ In config select "Interfacing Options" > "Serial".
 "Would you like a login shell to be accessible over serial?" > NO
 "Would you like the serial port hardware to be enabled?" > Yes
 
-In config select "Interfacing Options" > "I2C" > Yes
-
 
 
 ### **Clone the Repository**
@@ -58,7 +56,7 @@ You can attempt to do the setup with the shell script setup-and-run. If this fai
 
 ```bash
 chmod +x setup-and-run.sh
-
+./setup-and-run.sh
 ```
 
 ## Manual Setup
@@ -152,7 +150,7 @@ chmod +x run.sh
 
 ###  AutoStart
 
-Add the .desktop file to /.config/autostart/ with the following content:
+Add  /.config/autostart/chatgpt-arduino.desktop with the following content:
 
 ```bash
   [Desktop Entry]
