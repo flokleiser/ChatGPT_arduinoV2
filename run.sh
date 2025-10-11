@@ -173,12 +173,27 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 else
   export DISPLAY=:0
   echo "Launching Chromium in kiosk mode..."
+  
+  # Ensure Chromium is configured to not use keyring
+  mkdir -p ~/.config/chromium/Default
+  if [ ! -f ~/.config/chromium/Default/Preferences ]; then
+    cat > ~/.config/chromium/Default/Preferences << EOL
+{
+  "credentials_enable_service": false,
+  "credentials_enable_autosignin": false
+}
+EOL
+  fi
+  
+  # Define Chromium flags to disable password prompts and other dialogs
+  CHROMIUM_FLAGS="--no-sandbox --kiosk --disable-infobars --disable-restore-session-state --disable-features=PasswordManager,GCMChannelStatus --password-store=basic --no-first-run --no-default-browser-check"
+  
   sleep 5  # Extra wait for desktop to finish loading
   if command -v chromium >/dev/null 2>&1; then
-    chromium --no-sandbox --kiosk --disable-infobars --disable-restore-session-state http://localhost:5173 &
+    chromium $CHROMIUM_FLAGS http://localhost:5173 &
     CHROMIUM_PID=$!
   elif command -v chromium-browser >/dev/null 2>&1; then
-    chromium-browser --no-sandbox --kiosk --disable-infobars --disable-restore-session-state http://localhost:5173 &
+    chromium-browser $CHROMIUM_FLAGS http://localhost:5173 &
     CHROMIUM_PID=$!
   else
     echo "Chromium browser not found! Please install it with 'sudo apt install chromium' or 'sudo apt install chromium-browser'"

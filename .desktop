@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Sentient Senses
-Comment=Start Sentient Senses Kiosk
-Exec=/home/lfranzke/SentientSenses/run.sh
-Path=/home/lfranzke/SentientSenses/
-Icon=utilities-terminal
-Terminal=false

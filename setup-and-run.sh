@@ -40,40 +40,32 @@ python3 -m venv python/venv
 source python/venv/bin/activate
 pip3 install --upgrade pip wheel setuptools
 pip3 install cffi
+# Install vosk dependencies explicitly
+pip3 install srt tqdm websockets
+# Install all requirements with dependencies
 pip3 install -r python/requirements.txt
 
 
 # TODO  install STT and TTS models
 
 echo "Setting up autostart for kiosk mode..."
-# Add Chromium kiosk mode to autostart
+# Disable keyring password prompt
+echo "Configuring Chromium to not use the keyring..."
+mkdir -p ~/.config/chromium/Default
+cat > ~/.config/chromium/Default/Preferences << EOL
+{
+  "credentials_enable_service": false,
+  "credentials_enable_autosignin": false
+}
+EOL
+
+# Add Chromium kiosk mode to autostart with flags to prevent password prompts
 AUTOSTART_FILE="/etc/xdg/lxsession/LXDE-pi/autostart"
 if ! grep -q "chromium-browser" "$AUTOSTART_FILE"; then
-    echo "@chromium-browser --kiosk --disable-infobars --disable-restore-session-state http://localhost:5173" | sudo tee -a "$AUTOSTART_FILE"
+    echo "@chromium-browser --kiosk --disable-infobars --disable-restore-session-state --disable-features=PasswordManager --password-store=basic --no-first-run --no-default-browser-check http://localhost:5173" | sudo tee -a "$AUTOSTART_FILE"
 fi
 
 echo "Setting up application autostart..."
-# Create autostart directory if it doesn't exist
-mkdir -p ~/.config/autostart
-
-# Create the desktop entry file
-cat > ~/.config/autostart/chatgpt_arduino.desktop << EOL
-[Desktop Entry]
-Type=Application
-Name=ChatGPT_arduinoV2
-Comment=Start ChatGPT_arduinoV2 Kiosk
-Exec=$HOME/ChatGPT_arduinoV2/run.sh
-Path=$HOME/ChatGPT_arduinoV2/
-Icon=utilities-terminal
-Terminal=false
-EOL
-
-# Make run.sh executable if it isn't already
-chmod +x run.sh
-
-echo "Autostart configuration completed."
-
-echo "Setting up backend and frontend to start on boot..."
 
 # Detect the actual user (even if running with sudo)
 ACTUAL_USER=${SUDO_USER:-$USER}
@@ -88,6 +80,7 @@ PROJECT_PATH=$(pwd)
 RUN_SCRIPT_PATH="$PROJECT_PATH/run.sh"
 
 # Create the autostart .desktop file as the actual user
+echo "Creating autostart file at $AUTOSTART_DIR/chatgpt-arduino.desktop"
 sudo -u "$ACTUAL_USER" tee "$AUTOSTART_DIR/chatgpt-arduino.desktop" > /dev/null << EOF
 [Desktop Entry]
 Type=Application
@@ -101,8 +94,18 @@ Categories=Application;
 X-GNOME-Autostart-enabled=true
 EOF
 
-# Set proper permissions
+# Set proper permissions and verify file exists
 sudo -u "$ACTUAL_USER" chmod 644 "$AUTOSTART_DIR/chatgpt-arduino.desktop"
+if [ -f "$AUTOSTART_DIR/chatgpt-arduino.desktop" ]; then
+    echo "✅ Autostart file created successfully"
+else
+    echo "❌ Failed to create autostart file"
+fi
+
+# Make run.sh executable if it isn't already
+chmod +x run.sh
+
+echo "Autostart configuration completed."
 
 echo "Making run.sh executable..."
 chmod +x ./run.sh
