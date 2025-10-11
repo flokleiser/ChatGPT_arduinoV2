@@ -171,10 +171,17 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   echo "Launching default browser on macOS..." &
   open http://localhost:5173 &
 else
-echo "Launching Chromium in kiosk mode..."
+  echo "Launching Chromium in kiosk mode..."
   sleep 5  # Extra wait for desktop to finish loading
- chromium-browser --no-sandbox --kiosk --disable-infobars --disable-restore-session-state http://localhost:5173 &
-CHROMIUM_PID=$!
+  if command -v chromium >/dev/null 2>&1; then
+    chromium --no-sandbox --kiosk --disable-infobars --disable-restore-session-state http://localhost:5173 &
+    CHROMIUM_PID=$!
+  elif command -v chromium-browser >/dev/null 2>&1; then
+    chromium-browser --no-sandbox --kiosk --disable-infobars --disable-restore-session-state http://localhost:5173 &
+    CHROMIUM_PID=$!
+  else
+    echo "Chromium browser not found! Please install it with 'sudo apt install chromium' or 'sudo apt install chromium-browser'"
+  fi
 fi
 
 # Wait for background jobs (so trap works)
