@@ -105,15 +105,17 @@ const config = {
     },
 
     // we can also add in history of older conversations here, or construct new ones.
-    /*
+   
     {
         "role": "assistant",
-        "content": "I have better things to do than talk to you. Go away!"
+        "content": "Fuck off, im not interested in you. Go away!"
     },
-    
+    {
         "role": "user",
         "content": "turn on the led"
-    },
+    }
+
+     /*
     {
         "role": "assistant",
         "content": "To turn on the led, you must answer my riddles. I am taken from a mine, and shut up in a wooden case, from which I am never released, and yet I am used by almost every person. What am I?"
