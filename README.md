@@ -63,24 +63,27 @@ chmod +x setup-and-run.sh
 
 ### 1. **Install Dependencies**
 - Update the system and install Node.js, npm, and Chromium:
-  ```bash
-  sudo apt update && sudo apt upgrade -y
-  curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-  # For Raspberry Pi OS Bookworm (newer)
-  sudo apt install -y nodejs chromium git
-  # For Raspberry Pi OS Bullseye and earlier
-  sudo apt install -y nodejs chromium-browser git
-  sudo apt-get install libusb-1.0-0-dev
-  sudo apt install portaudio19-dev
-  sudo apt install fswebcam
-  ```
+
+```bash
+sudo apt update && sudo apt upgrade -y
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+# For Raspberry Pi OS Bookworm (newer)
+sudo apt install -y nodejs chromium git
+# For Raspberry Pi OS Bullseye and earlier
+sudo apt install -y nodejs chromium-browser git
+sudo apt-get install libusb-1.0-0-dev
+sudo apt install portaudio19-dev
+sudo apt install fswebcam
+```
 
 On macOS:
+```bash
   brew install nodejs
   brew install libusb
   ```
 
 ### 2. **Install Project Dependencies**
+
 ```bash
 cd ChatGPT_arduinoV2
 npm install
@@ -88,12 +91,15 @@ npm install
 
 ### 3. Create and activate a Python virtual environment and install packages
 
+```bash
 python3 -m venv python/venv
 source python/venv/bin/activate
 
 pip3 install vosk numpy piper pyusb sounddevice requests  
 pip3 install --no-deps -r python/requirements.txt
 pip3 install onnxruntime pyaudio webrtcvad 
+
+```
 
 ### 4. setup .env file
 
