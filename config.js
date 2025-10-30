@@ -1,10 +1,11 @@
 const config = {
   textToSpeechModel: 2, // -1: not tts, 0: en_GB-cori-high, 1:en_GB-alan-medium, 2:en_GB-alan-low, 3:en_US-lessac-medium, 4: de_DE-thorsten-medium. Changing this value may cause an initial delay as the model is downloaded.
   speechToTextModel: 0, // 0: small english, 1: medium english, 2: small german. 3:  giga english.  Changing this value may cause an initial delay as the model is downloaded.
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   //------ alternatively, you can set speechToTextModel to a string with the model name 
   // speechToTextModel: "vosk-model-small-de-0.15",
   //------ full list of TTS models can be found here:  https://alphacephei.com/vosk/models
-  //notifyTTS: true, // if enabled, send a notification to the Arduino in the format 
+  notifyTTS: true, // if enabled, send a notification to the Arduino in the format 
   volume: 50, // 0 to 100
   // OPENAI_API_KEY: 'your-api-key-here'
 
